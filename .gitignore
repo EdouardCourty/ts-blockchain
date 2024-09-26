@@ -1,0 +1,13 @@
+node_modules
+dist
+logs
+.idea
+
+data/blockchain.json
+data/peers.json
+
+signed-transaction.json
+src/bin/wallet1.json
+
+coverage
+

@@ -1,0 +1,4 @@
+{
+  "blockchainFile": "./data/blockchain.json",
+  "peersFile": "./data/peers.json"
+}
