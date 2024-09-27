@@ -1,48 +1,48 @@
 import Block from './Block';
 import Transaction from './Transaction';
-import logger from "../service/Logger";
 
 class Blockchain {
     chain: Block[];
     pendingTransactions: Transaction[];
+    transactionBuffer: Transaction[];
+
     difficulty: number;
     miningReward: number;
+    isMining: boolean;
 
-    constructor() {
-        // Create the genesis block
+    constructor(difficulty: number, miningReward: number) {
         this.chain = [this.createGenesisBlock()];
         this.pendingTransactions = [];
-        this.difficulty = 2;
-        this.miningReward = 100;
+        this.transactionBuffer = [];
+
+        this.difficulty = difficulty;
+        this.miningReward = miningReward;
+        this.isMining = false;
     }
 
     // Genesis block creation
-    createGenesisBlock(): Block {
+    private createGenesisBlock(): Block {
         return new Block(0, new Date().toISOString(), [], '0');
     }
 
     // Get the latest block in the chain
-    getLatestBlock(): Block {
+    public getLatestBlock(): Block {
         return this.chain[this.chain.length - 1];
     }
 
     // Mine pending transactions and reward the miner
-    minePendingTransactions(miningRewardAddress: string) {
+    public minePendingTransactions(miningRewardAddress: string): Block {
         const rewardTx = new Transaction(null, miningRewardAddress, this.miningReward, 'REWARD');
         this.pendingTransactions.push(rewardTx);
 
         const block = new Block(this.chain.length, new Date().toISOString(), this.pendingTransactions, this.getLatestBlock().hash);
         block.mineBlock(this.difficulty);
 
-        logger.info(`Block successfully mined: ${block.hash}!`);
-
-        this.chain.push(block);
-
-        this.pendingTransactions = [];
+        return block;
     }
 
     // Calculate the effective balance considering pending and confirmed transactions
-    getEffectiveBalanceOfAddress(address: string): number {
+    public getEffectiveBalanceOfAddress(address: string): number {
         let balance = this.getBalanceOfAddress(address);
 
         // Adjust balance for pending transactions
@@ -58,19 +58,28 @@ class Blockchain {
         return balance;
     }
 
-    // Create a new transaction and add it to the pending list
-    createTransaction(transaction: Transaction) {
+    private verifyTransaction(transaction: Transaction): void {
         const effectiveBalance = this.getEffectiveBalanceOfAddress(transaction.fromAddress as string);
 
         // If the sender's balance (including pending transactions) is less than the transaction amount, reject it
         if (transaction.fromAddress !== null && effectiveBalance < transaction.amount) {
             throw new Error('Insufficient funds');
         }
+    }
+
+    public addPendingTransaction(transaction: Transaction) {
+        this.verifyTransaction(transaction);
 
         this.pendingTransactions.push(transaction);
     }
 
-    addBlock(newBlock: Block) {
+    public addBufferedTransactions(transaction: Transaction): void {
+        this.verifyTransaction(transaction);
+
+        this.transactionBuffer.push(transaction);
+    }
+
+    public addBlock(newBlock: Block) {
         const latestBlock = this.getLatestBlock();
         if (newBlock.previousHash !== latestBlock.hash) {
             throw new Error('Invalid previous hash');
@@ -89,7 +98,7 @@ class Blockchain {
     }
 
     // Get balance of a particular address (considering only confirmed transactions)
-    getBalanceOfAddress(address: string): number {
+    public getBalanceOfAddress(address: string): number {
         let balance = 0;
 
         // Loop through all the blocks and their transactions
@@ -120,7 +129,7 @@ class Blockchain {
     }
 
     // Check if the blockchain is valid
-    isChainValid(): boolean {
+    public isChainValid(): boolean {
         for (let i = 1; i < this.chain.length; i++) {
             const currentBlock = this.chain[i];
             const previousBlock = this.chain[i - 1];

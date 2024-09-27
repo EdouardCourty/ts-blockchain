@@ -5,12 +5,14 @@ import blockchainRoutes from './routes/blockchainRoutes';
 import transactionRoutes from './routes/transactionRoutes';
 import peerRoutes from './routes/peersRoutes';
 import syncRoutes from './routes/syncRoutes';
-import balanceRoutes from './routes/balanceRoutes'; // Import the new balance route
+import balanceRoutes from './routes/balanceRoutes';
+import miningRoutes from "./routes/miningRoutes";
 
 import logger from './service/Logger';
 import blocksRoutes from './routes/blocksRoutes';
 import baseRoutes from './routes/baseRoutes';
 import Logger from "./service/Logger";
+import BlockchainLifecycleManager from "./service/BlockchainLifecycleManager";
 
 const app = express();
 app.use(express.json());
@@ -34,9 +36,15 @@ app.use('/peers', peerRoutes);
 app.use('/sync', syncRoutes);
 app.use('/balance', balanceRoutes);
 app.use('/blocks', blocksRoutes);
+app.use('/mining', miningRoutes);
 app.use('/', baseRoutes);
 
 // Start the server
 app.listen(PORT, () => {
     Logger.info(`Server running on port ${PORT}`);
+
+    const blockchain = BlockchainLifecycleManager.getInstance();
+    BlockchainLifecycleManager.startMiningLoop();
+
+    Logger.info(`Blockchain difficulty: ${blockchain.difficulty}, mining reward: ${blockchain.miningReward}`);
 });

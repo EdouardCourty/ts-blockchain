@@ -30,7 +30,7 @@ yarn start
 - Balance
   - Get balance of an address
 - Mining
-  - Proof of Work
+  - Proof of Work (Running in a worker thread to ensure non-blocking workflow)
   - Rewarding
 
 ### To do

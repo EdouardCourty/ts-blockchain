@@ -39,6 +39,21 @@ class Block {
         const target = Array(difficulty + 1).join('0');
         return this.hash.substring(0, difficulty) === target;
     }
+
+    static fromJSON(data: any): Block {
+        const { index, timestamp, transactions, previousHash, hash, nonce } = data;
+
+        // Reconstruct transactions from JSON data if necessary
+        const transactionObjects = transactions.map((tx: any) => {
+            return new Transaction(tx.fromAddress, tx.toAddress, tx.amount, tx.type);
+        });
+
+        const block = new Block(index, timestamp, transactionObjects, previousHash);
+        block.hash = hash;  // Set the hash from JSON data
+        block.nonce = nonce;  // Set the nonce from JSON data
+
+        return block;
+    }
 }
 
 export default Block;

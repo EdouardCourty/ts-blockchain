@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import BlockchainSingleton from '../BlockchainSingleton';
 import Transaction from '../model/Transaction';
 import WalletService from '../service/WalletService';
+import BlockchainLifecycleManager from "../service/BlockchainLifecycleManager";
 
 const router = Router();
 
@@ -28,9 +28,8 @@ router.post('/', (req, res) => {
         return res.status(400).json({ error: 'Transaction is invalid' });
     }
 
-    const blockchain = BlockchainSingleton.getInstance();
     try {
-        blockchain.createTransaction(transaction);
+        BlockchainLifecycleManager.addTransaction(transaction);
         res.json({ message: 'Transaction successfully added to the blockchain', transaction });
     } catch (error: Error | any) {
         res.status(400).json({ error: error.message });

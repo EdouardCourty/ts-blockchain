@@ -1,15 +1,15 @@
 import { Router } from 'express';
 import axios from 'axios';
 
-import BlockchainSingleton from '../BlockchainSingleton';
 import PeersSingleton from "../PeersSingleton";
 import Logger from "../service/Logger";
+import BlockchainLifecycleManager from "../service/BlockchainLifecycleManager";
 
 const router = Router();
 
 // GET /sync - Sync blockchain with peers
 router.get('/', async (_, res) => {
-    const blockchain = BlockchainSingleton.getInstance();
+    const blockchain = BlockchainLifecycleManager.getInstance();
     const peers = PeersSingleton.getInstance();
     let longestChain = blockchain.chain;
 
@@ -29,7 +29,7 @@ router.get('/', async (_, res) => {
     // If a longer valid chain is found, replace the current blockchain
     if (longestChain.length > blockchain.chain.length) {
         blockchain.chain = longestChain;
-        BlockchainSingleton.saveInstance();
+        BlockchainLifecycleManager.saveInstance();
 
         res.json({ message: 'Blockchain synced with peers', chain: blockchain.chain });
     } else {

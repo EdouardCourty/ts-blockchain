@@ -2,7 +2,6 @@
 import { Command } from 'commander';
 import WalletService from '../service/WalletService';
 import Transaction from '../model/Transaction';
-import * as fs from 'fs';
 
 const program = new Command();
 
@@ -45,9 +44,7 @@ program
             signature: transaction.signature,
         };
 
-        // Save the signed transaction to a file
-        fs.writeFileSync('signed-transaction.json', JSON.stringify(signedTransaction, null, 4));
-        console.log('Transaction signed successfully and saved to signed-transaction.json.');
+        console.log(signedTransaction, JSON.stringify(signedTransaction));
     });
 
 program.parse(process.argv);

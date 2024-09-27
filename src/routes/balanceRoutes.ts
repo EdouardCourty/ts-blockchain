@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import BlockchainSingleton from '../BlockchainSingleton';
+import BlockchainLifecycleManager from "../service/BlockchainLifecycleManager";
 
 const router = Router();
 
@@ -11,7 +11,7 @@ router.get('/:address', (req, res) => {
         return res.status(400).json({ error: 'Address is required' });
     }
 
-    const blockchain = BlockchainSingleton.getInstance();
+    const blockchain = BlockchainLifecycleManager.getInstance();
     const balance = blockchain.getBalanceOfAddress(address);
 
     res.json({ balance });

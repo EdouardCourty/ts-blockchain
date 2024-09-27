@@ -26,7 +26,7 @@ describe('Blockchain with a PoW model', () => {
 
         const transaction = new Transaction(fromAddress, toAddress, amount);
 
-        blockchain.createTransaction(transaction);
+        blockchain.addPendingTransaction(transaction);
 
         expect(blockchain.pendingTransactions.length).toBe(1);
         expect(blockchain.pendingTransactions[0]).toEqual(transaction);
@@ -40,7 +40,7 @@ describe('Blockchain with a PoW model', () => {
         const transaction = new Transaction(fromAddress, toAddress, amount);
 
         expect(() => {
-            blockchain.createTransaction(transaction);
+            blockchain.addPendingTransaction(transaction);
         }).toThrow('Insufficient funds');
     });
 
@@ -68,7 +68,7 @@ describe('Blockchain with a PoW model', () => {
 
         // Create a transaction from fromAddress to toAddress
         const transaction = new Transaction(fromAddress, toAddress, 50);
-        blockchain.createTransaction(transaction);
+        blockchain.addPendingTransaction(transaction);
 
         // Mine the transaction
         blockchain.minePendingTransactions(minerAddress);
@@ -103,7 +103,7 @@ describe('Blockchain with a PoW model', () => {
 
         // Create a pending transaction from fromAddress to toAddress
         const transaction = new Transaction(fromAddress, toAddress, amount);
-        blockchain.createTransaction(transaction);
+        blockchain.addPendingTransaction(transaction);
 
         // Since the transaction is pending, the effective balance should be updated
         const effectiveBalanceFrom = blockchain.getEffectiveBalanceOfAddress(fromAddress);

@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import BlockchainSingleton from '../BlockchainSingleton';
-import PeersSingleton from '../PeersSingleton';
+import BlockchainLifecycleManager from "../service/BlockchainLifecycleManager";
 
 const router = Router();
 
 // GET /blocks - Retrieve the entire blockchain
 router.get('/', (_, res) => {
-    const blockchain = BlockchainSingleton.getInstance();
+    const blockchain = BlockchainLifecycleManager.getInstance();
     res.json({ chain: blockchain.chain });
 
     return res.end();
@@ -14,8 +13,9 @@ router.get('/', (_, res) => {
 
 // GET /blocks/latest - Retrieve the latest block
 router.get('/latest', (_, res) => {
-    const blockchain = BlockchainSingleton.getInstance();
+    const blockchain = BlockchainLifecycleManager.getInstance();
     const latestBlock = blockchain.getLatestBlock();
+
     res.json({ block: latestBlock });
 
     return res.end();
@@ -24,7 +24,7 @@ router.get('/latest', (_, res) => {
 // GET /blocks/:index - Retrieve a block by its index
 router.get('/:index', (req, res) => {
     const { index } = req.params;
-    const blockchain = BlockchainSingleton.getInstance();
+    const blockchain = BlockchainLifecycleManager.getInstance();
 
     if (isNaN(Number(index))) {
         return res.status(400).json({ error: 'Invalid block index' }).end();
@@ -37,27 +37,6 @@ router.get('/:index', (req, res) => {
     } else {
         res.status(404).json({ error: 'Block not found' });
     }
-
-    return res.end();
-});
-
-router.post('/mine', async (req, res) => {
-    const { minerAddress } = req.body;
-
-    if (!minerAddress) {
-        return res.status(400).json({ error: 'Miner address is required' });
-    }
-
-    const blockchain = BlockchainSingleton.getInstance();
-    blockchain.minePendingTransactions(minerAddress);
-
-    BlockchainSingleton.saveInstance(); // Save the blockchain after mining
-
-    // Broadcast the new block to all peers
-    const newBlock = blockchain.getLatestBlock();
-    await PeersSingleton.broadcastNewBlock(newBlock);
-
-    res.json({ message: 'Block mined and broadcasted successfully', block: newBlock });
 
     return res.end();
 });
