@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+
 import Blockchain from '../model/Blockchain';
 import Block from '../model/Block';
 import Transaction from '../model/Transaction';
@@ -46,10 +47,7 @@ class BlockchainPersister {
         const blockchain = new Blockchain(difficulty, reward);
 
         blockchain.chain = data.chain.map((blockData: any) => {
-            const block = new Block(blockData.index, blockData.timestamp, blockData.transactions, blockData.previousHash);
-            block.hash = blockData.hash;
-            block.nonce = blockData.nonce;
-            return block;
+            return Block.fromJSON(blockData);
         });
 
         blockchain.pendingTransactions = data.pendingTransactions.map((tx: any) => {

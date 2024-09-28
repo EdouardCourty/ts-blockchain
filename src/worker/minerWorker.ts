@@ -1,13 +1,12 @@
 import { parentPort, workerData } from 'worker_threads';
 
-import BlockchainPersister from "../service/BlockchainPersister";
+import Block from "../model/Block";
 
-const { blockchainData, difficulty, reward, miningRewardAddress } = workerData;
+const { blockData, difficulty } = workerData;
 
-// TODO: Refactor this so only the block to be mined is passed to the worker instead of the whole chain
-const blockchain = BlockchainPersister.parseBlockchain(blockchainData, difficulty, reward);
-const newBlock = blockchain.minePendingTransactions(miningRewardAddress);
+const block = Block.fromJSON(blockData);
+block.mineBlock(difficulty);
 
 parentPort?.postMessage({
-    blockData: JSON.stringify(newBlock)
+    blockData: JSON.stringify(block)
 });

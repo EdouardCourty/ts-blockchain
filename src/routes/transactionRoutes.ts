@@ -29,7 +29,7 @@ router.post('/', (req, res) => {
     }
 
     try {
-        BlockchainLifecycleManager.addTransaction(transaction);
+        BlockchainLifecycleManager.getInstance().addTransaction(transaction);
         res.json({ message: 'Transaction successfully added to the blockchain', transaction });
     } catch (error: Error | any) {
         res.status(400).json({ error: error.message });

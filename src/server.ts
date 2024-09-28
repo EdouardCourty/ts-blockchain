@@ -43,8 +43,8 @@ app.use('/', baseRoutes);
 app.listen(PORT, () => {
     Logger.info(`Server running on port ${PORT}`);
 
-    const blockchain = BlockchainLifecycleManager.getInstance();
-    BlockchainLifecycleManager.startMiningLoop();
+    const blockchain = BlockchainLifecycleManager.getInstance().getBlockchain();
+    BlockchainLifecycleManager.getInstance().startMiningLoop();
 
     Logger.info(`Blockchain difficulty: ${blockchain.difficulty}, mining reward: ${blockchain.miningReward}`);
 });

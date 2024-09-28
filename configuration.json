@@ -3,6 +3,6 @@
   "peersFile": "./data/peers.json",
   "difficulty": 6,
   "miningReward": 100,
-  "blockTime": 60000,
+  "blockTime": 10000,
   "miningRewardAddress": "04f8c16f885637111762ee66d689fe7d3c0b1fdba7c1bd65b30eb995a589ee360a61cc1464b5b38fb380d22410baa05113dc1823109561b26a3d6bbb3de6752ef8"
 }

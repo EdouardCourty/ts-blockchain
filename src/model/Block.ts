@@ -29,6 +29,7 @@ class Block {
     // Proof-of-work algorithm to ensure the block has enough difficulty
     mineBlock(difficulty: number) {
         const target = Array(difficulty + 1).join('0');
+
         while (this.hash.substring(0, difficulty) !== target) {
             this.nonce++;
             this.hash = this.calculateHash();

@@ -1,17 +1,32 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
+
+import * as config from '../../configuration.json';
+
 import Logger from "./Logger";
+import Block from "../model/Block";
 
 class PeerManager {
+    private static instance: PeerManager;
+    private peers: string[];
     private readonly peersFilePath: string;
 
-    constructor(peersFilePath: string) {
-        this.peersFilePath = peersFilePath;
+    constructor() {
+        this.peersFilePath = config.peersFile;
+        this.peers = this.loadPeers(); // Load peers when instantiated
+    }
+
+    // Singleton pattern: Get the single instance of the PeerManager
+    public static getInstance(): PeerManager {
+        if (!PeerManager.instance) {
+            PeerManager.instance = new PeerManager();
+        }
+        return PeerManager.instance;
     }
 
     // Load peers from the JSON file
-    loadPeers(): string[] {
+    private loadPeers(): string[] {
         if (fs.existsSync(this.peersFilePath)) {
             const rawData = fs.readFileSync(this.peersFilePath, 'utf8');
             return JSON.parse(rawData);
@@ -21,8 +36,8 @@ class PeerManager {
     }
 
     // Save peers to the JSON file
-    savePeers(peers: string[]): void {
-        const peerData = JSON.stringify(peers, null, 4);
+    private savePeers(): void {
+        const peerData = JSON.stringify(this.peers, null, 4);
         const dir = path.dirname(this.peersFilePath);
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
@@ -30,15 +45,43 @@ class PeerManager {
         fs.writeFileSync(this.peersFilePath, peerData, 'utf8');
     }
 
+    // Add a peer and update the list in memory and on disk
+    public addPeer(peerUrl: string): boolean {
+        if (!this.peers.includes(peerUrl)) {
+            this.peers.push(peerUrl);
+            this.savePeers();  // Save peers to file after adding
+            Logger.info(`Peer added: ${peerUrl}`);
+            return true;
+        }
+        Logger.info(`Peer already exists: ${peerUrl}`);
+        return false;
+    }
+
+    // Remove a peer and update the list in memory and on disk
+    public removePeer(peerUrl: string): boolean {
+        if (this.peers.includes(peerUrl)) {
+            this.peers = this.peers.filter((peer) => peer !== peerUrl);
+            this.savePeers();  // Save peers to file after removal
+            Logger.info(`Peer removed: ${peerUrl}`);
+            return true;
+        }
+        Logger.info(`Peer not found: ${peerUrl}`);
+        return false;
+    }
+
+    // Get the list of peers
+    public getPeers(): string[] {
+        return this.peers;
+    }
+
     // Broadcast a new block to all peers
-    async broadcastNewBlock(block: any): Promise<void> {
-        const peers = this.loadPeers(); // Load peers from the file
-        for (const peerUrl of peers) {
+    public async broadcastNewBlock(block: Block): Promise<void> {
+        for (const peerUrl of this.peers) {
             try {
                 await axios.post(`${peerUrl}/blockchain/new-block`, { block });
-                Logger.info(`Successfully notified peer: ${peerUrl}`);
+                Logger.info(`Successfully broadcasted block to peer: ${peerUrl}`);
             } catch (error: any) {
-                Logger.error(`Error notifying peer ${peerUrl}:`, error.message);
+                Logger.error(`Error broadcasting block to peer ${peerUrl}: ${error.message}`);
             }
         }
     }

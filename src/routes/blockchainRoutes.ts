@@ -20,11 +20,11 @@ router.post('/new-block', (req, res) => {
         return res.status(400).json({ error: 'Block is required' }).end();
     }
 
-    const blockchain = BlockchainLifecycleManager.getInstance();
+    const blockchain = BlockchainLifecycleManager.getInstance().getBlockchain();
 
     try {
         blockchain.addBlock(block as Block);
-        BlockchainLifecycleManager.saveInstance(); // Save the updated blockchain
+        BlockchainLifecycleManager.getInstance().saveBlockchain(); // Save the updated blockchain
         res.json({ message: 'New block added to the blockchain' });
     } catch (error: Error | any) {
         res.status(400).json({ error: error.message });

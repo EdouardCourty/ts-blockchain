@@ -2,34 +2,43 @@ import Blockchain from '../model/Blockchain';
 import BlockchainPersister from '../service/BlockchainPersister';
 import Logger from '../service/Logger';
 import Transaction from "../model/Transaction";
-
-import { Worker} from "node:worker_threads";
-
-import * as config from '../../configuration.json';
 import Block from "../model/Block";
 
+import { Worker } from "node:worker_threads";
+import * as config from '../../configuration.json';
+
 class BlockchainLifecycleManager {
-    private static instance: Blockchain;
-    private static persister = new BlockchainPersister(config.blockchainFile);
-    private static miningInterval: NodeJS.Timeout | null = null;
-    public static isMining: boolean = false;
+    private static instance: BlockchainLifecycleManager; // Singleton instance
+    private blockchain: Blockchain;
+    private persister: BlockchainPersister;
+    private miningInterval: NodeJS.Timeout | null = null;
+    public isMining: boolean = false;
 
-    // Get the blockchain instance (singleton pattern)
-    static getInstance(): Blockchain {
-        if (!this.instance) {
-            this.instance = this.persister.loadBlockchain(config.difficulty, config.miningReward);
+    private constructor() {
+        this.persister = new BlockchainPersister(config.blockchainFile);
+        this.blockchain = this.persister.loadBlockchain(config.difficulty, config.miningReward);
+    }
+
+    // Singleton pattern: Get the single instance of BlockchainLifecycleManager
+    public static getInstance(): BlockchainLifecycleManager {
+        if (!BlockchainLifecycleManager.instance) {
+            BlockchainLifecycleManager.instance = new BlockchainLifecycleManager();
         }
+        return BlockchainLifecycleManager.instance;
+    }
 
-        return this.instance;
+    // Get the blockchain instance
+    public getBlockchain(): Blockchain {
+        return this.blockchain;
     }
 
     // Save the blockchain state
-    static saveInstance(): void {
-        this.persister.saveBlockchain(this.getInstance());
+    public saveBlockchain(): void {
+        this.persister.saveBlockchain(this.blockchain);
     }
 
     // Start the mining loop, which mines blocks at regular intervals
-    static startMiningLoop(): void {
+    public startMiningLoop(): void {
         if (this.miningInterval !== null) {
             Logger.info('Mining loop is already running.');
             return;
@@ -42,12 +51,12 @@ class BlockchainLifecycleManager {
                 return;
             }
 
-            this.startMiningInWorker(this.getInstance(), config.miningRewardAddress);
+            this.startMiningInWorker(config.miningRewardAddress);
         }, config.blockTime);
     }
 
     // Stop the mining loop
-    static stopMiningLoop(): void {
+    public stopMiningLoop(): void {
         if (this.miningInterval !== null) {
             clearInterval(this.miningInterval);
             this.miningInterval = null;
@@ -57,18 +66,37 @@ class BlockchainLifecycleManager {
         }
     }
 
-    private static startMiningInWorker(blockchain: Blockchain, miningRewardAddress: string): void {
+    // Mine pending transactions and reward the miner
+    public generateMineableBlock(miningRewardAddress: string): Block {
+        const rewardTransaction = new Transaction(
+            null,
+            miningRewardAddress,
+            this.blockchain.miningReward,
+            'REWARD'
+        );
+
+        return new Block(
+            this.blockchain.chain.length,
+            new Date().toISOString(),
+            [
+                ...this.blockchain.pendingTransactions,
+                rewardTransaction,
+            ],
+            this.blockchain.getLatestBlock().hash
+        );
+    }
+
+    private startMiningInWorker(miningRewardAddress: string): void {
         Logger.info('Mining started.');
         this.isMining = true;
 
+        const mineableBlock = this.generateMineableBlock(miningRewardAddress);
+
         const worker = new Worker('./dist/worker/minerWorker.js', {
             workerData: {
-                lastHash: blockchain.getLatestBlock().hash,
-                blockchainData: blockchain,
-                difficulty: this.getInstance().difficulty,
-                reward: this.getInstance().miningReward,
-                miningRewardAddress
-            }
+                blockData: mineableBlock,
+                difficulty: this.blockchain.difficulty,
+            },
         });
 
         worker.on('message', (message) => {
@@ -77,12 +105,12 @@ class BlockchainLifecycleManager {
 
             Logger.info('Mining completed. Block mined: ' + newBlock.hash);
 
-            this.getInstance().addBlock(newBlock);
-            this.saveInstance();
+            this.blockchain.addBlock(newBlock);
+            this.saveBlockchain();
 
             // Move the buffered transactions to the pending transactions
-            this.getInstance().pendingTransactions = [...this.getInstance().transactionBuffer];
-            this.getInstance().transactionBuffer = [];
+            this.blockchain.pendingTransactions = [...this.blockchain.transactionBuffer];
+            this.blockchain.transactionBuffer = [];
 
             this.isMining = false;
         });
@@ -103,16 +131,14 @@ class BlockchainLifecycleManager {
     }
 
     // Add a new transaction and save the blockchain
-    static addTransaction(transaction: Transaction): void {
-        const blockchain = this.getInstance();
-
+    public addTransaction(transaction: Transaction): void {
         if (this.isMining) {
-            blockchain.addBufferedTransactions(transaction);
+            this.blockchain.addBufferedTransactions(transaction);
         } else {
-            blockchain.addPendingTransaction(transaction);
+            this.blockchain.addPendingTransaction(transaction);
         }
 
-        this.saveInstance();
+        this.saveBlockchain();
     }
 }
 

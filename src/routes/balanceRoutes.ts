@@ -11,7 +11,7 @@ router.get('/:address', (req, res) => {
         return res.status(400).json({ error: 'Address is required' });
     }
 
-    const blockchain = BlockchainLifecycleManager.getInstance();
+    const blockchain = BlockchainLifecycleManager.getInstance().getBlockchain();
     const balance = blockchain.getBalanceOfAddress(address);
 
     res.json({ balance });

@@ -5,16 +5,14 @@ const router = Router();
 
 // GET /blocks - Retrieve the entire blockchain
 router.get('/', (_, res) => {
-    const blockchain = BlockchainLifecycleManager.getInstance();
-    res.json({ chain: blockchain.chain });
+    res.json({ chain: BlockchainLifecycleManager.getInstance().getBlockchain().chain });
 
     return res.end();
 });
 
 // GET /blocks/latest - Retrieve the latest block
 router.get('/latest', (_, res) => {
-    const blockchain = BlockchainLifecycleManager.getInstance();
-    const latestBlock = blockchain.getLatestBlock();
+    const latestBlock = BlockchainLifecycleManager.getInstance().getBlockchain().getLatestBlock();
 
     res.json({ block: latestBlock });
 
@@ -24,7 +22,7 @@ router.get('/latest', (_, res) => {
 // GET /blocks/:index - Retrieve a block by its index
 router.get('/:index', (req, res) => {
     const { index } = req.params;
-    const blockchain = BlockchainLifecycleManager.getInstance();
+    const blockchain = BlockchainLifecycleManager.getInstance().getBlockchain();
 
     if (isNaN(Number(index))) {
         return res.status(400).json({ error: 'Invalid block index' }).end();
