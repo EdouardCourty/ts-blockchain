@@ -3,6 +3,7 @@ import Transaction from './Transaction';
 
 import InsufficientFundsError from "../error/InsufficientFundsError";
 import InvalidBlockError from "../error/InvalidBlockError";
+import DuplicateTransactionError from "../error/DuplicateTransactionError";
 
 class Blockchain {
     chain: Block[];
@@ -61,11 +62,23 @@ class Blockchain {
     public addPendingTransaction(transaction: Transaction) {
         this.verifyTransaction(transaction);
 
+        this.pendingTransactions.forEach((pendingTransaction) => {
+            if (pendingTransaction.signature === transaction.signature) {
+                throw new DuplicateTransactionError('Duplicate transaction.');
+            }
+        })
+
         this.pendingTransactions.push(transaction);
     }
 
     public addBufferedTransactions(transaction: Transaction): void {
         this.verifyTransaction(transaction);
+
+        this.transactionBuffer.forEach((bufferedTransaction) => {
+            if (bufferedTransaction.signature === transaction.signature) {
+                throw new DuplicateTransactionError('Duplicate transaction.');
+            }
+        })
 
         this.transactionBuffer.push(transaction);
     }

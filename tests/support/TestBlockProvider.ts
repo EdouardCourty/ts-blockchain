@@ -1,10 +1,11 @@
 import Blockchain from "../../src/model/Blockchain";
-import Transaction from "../../src/model/Transaction";
 import Block from "../../src/model/Block";
+// @ts-ignore
+import TestTransactionProvider from "./TestTransactionProvider";
 
 class TestBlockProvider {
     public static getBlockWithBalance(blockchain: Blockchain, address: string, balance: number): Block {
-        const transaction = new Transaction(null, address, balance, 'REWARD');
+        const transaction = TestTransactionProvider.getRewardTransaction(address, balance);
 
         const block = new Block(1, new Date().toISOString(), [transaction], blockchain.getLatestBlock().hash);
         block.mineBlock(blockchain.difficulty);

@@ -1,5 +1,6 @@
 import WalletService from '../../src/service/WalletService';
-import Transaction from '../../src/model/Transaction';
+// @ts-ignore
+import TestTransactionProvider from "../support/TestTransactionProvider";
 
 describe('WalletService', () => {
     it('should generate a valid key pair', () => {
@@ -20,7 +21,7 @@ describe('WalletService', () => {
 
     it('should sign a transaction and generate a valid signature', () => {
         const { privateKey, publicKey } = WalletService.generateKeys();
-        const transaction = new Transaction(publicKey, 'recipientAddress', 100);
+        const transaction = TestTransactionProvider.getTransaction(publicKey, 'recipientAddress', 100, '')
 
         // Sign the transaction using the private key
         const signature = WalletService.signTransaction(privateKey, transaction);
@@ -31,7 +32,7 @@ describe('WalletService', () => {
 
     it('should verify a valid signature', () => {
         const { privateKey, publicKey } = WalletService.generateKeys();
-        const transaction = new Transaction(publicKey, 'recipientAddress', 100);
+        const transaction = TestTransactionProvider.getTransaction(publicKey, 'recipientAddress', 100)
 
         // Sign the transaction using the private key
         const signature = WalletService.signTransaction(privateKey, transaction);
@@ -45,7 +46,7 @@ describe('WalletService', () => {
     it('should reject an invalid signature', () => {
         const { privateKey, publicKey } = WalletService.generateKeys();
         const wrongPublicKey = WalletService.generateKeys().publicKey;
-        const transaction = new Transaction(publicKey, 'recipientAddress', 100);
+        const transaction = TestTransactionProvider.getTransaction(publicKey, 'recipientAddress', 100);
 
         // Sign the transaction using the private key
         const signature = WalletService.signTransaction(privateKey, transaction);

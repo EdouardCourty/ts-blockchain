@@ -14,7 +14,7 @@ router.post('/', (req, res) => {
     }
 
     // Reconstruct the transaction
-    const transaction = new Transaction(fromAddress, toAddress, amount);
+    const transaction = new Transaction(fromAddress, toAddress, amount, 'REGULAR', new Date().toISOString());
     transaction.signature = signature;
 
     // Verify the transaction using the public key (fromAddress), message (hash), and signature

@@ -6,8 +6,8 @@ describe('Block', () => {
         const index = 1;
         const timestamp = new Date().toISOString();
         const transactions: Transaction[] = [
-            new Transaction('address1', 'address2', 100),
-            new Transaction('address2', 'address3', 50)
+            new Transaction('address1', 'address2', 100, 'REGULAR', 'now'),
+            new Transaction('address2', 'address3', 50, 'REGULAR', 'now')
         ];
         const previousHash = 'previousHash';
 
@@ -25,7 +25,7 @@ describe('Block', () => {
         const index = 1;
         const timestamp = new Date().toISOString();
         const transactions: Transaction[] = [
-            new Transaction('address1', 'address2', 100)
+            new Transaction('address1', 'address2', 100, 'REGULAR', 'now')
         ];
         const previousHash = 'previousHash';
 
@@ -39,7 +39,7 @@ describe('Block', () => {
         const index = 1;
         const timestamp = new Date().toISOString();
         const transactions: Transaction[] = [
-            new Transaction('address1', 'address2', 100)
+            new Transaction('address1', 'address2', 100, 'REGULAR', 'now')
         ];
         const previousHash = 'previousHash';
         const block = new Block(index, timestamp, transactions, previousHash);
@@ -57,7 +57,7 @@ describe('Block', () => {
         const index = 1;
         const timestamp = new Date().toISOString();
         const transactions: Transaction[] = [
-            new Transaction('address1', 'address2', 100)
+            new Transaction('address1', 'address2', 100, 'REGULAR', 'now')
         ];
         const previousHash = 'previousHash';
         const block = new Block(index, timestamp, transactions, previousHash);

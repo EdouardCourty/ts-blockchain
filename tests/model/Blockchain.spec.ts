@@ -3,7 +3,9 @@ import Block from '../../src/model/Block';
 import Transaction from '../../src/model/Transaction';
 import InsufficientFundsError from '../../src/error/InsufficientFundsError';
 import InvalidBlockError from '../../src/error/InvalidBlockError';
-import TestBlockProvider from "../support/TestBlockProvider";
+// @ts-ignore
+import TestBlockProvider from '../support/TestBlockProvider';
+import TestTransactionProvider from "../support/TestTransactionProvider";
 
 describe('Blockchain', () => {
     let blockchain: Blockchain;
@@ -26,13 +28,13 @@ describe('Blockchain', () => {
         const toAddress = 'address2';
 
         // Mine a reward block to give balance to 'fromAddress'
-        blockchain.addPendingTransaction(new Transaction(null, fromAddress, miningReward, 'REWARD'));
+        blockchain.addPendingTransaction(new Transaction(null, fromAddress, miningReward, 'REWARD', 'now'));
         blockchain.addBlock(TestBlockProvider.getBlockWithBalance(blockchain, fromAddress, 100));
 
         expect(blockchain.getBalanceOfAddress(fromAddress)).toBe(miningReward);
 
         // Transfer funds from 'fromAddress' to 'toAddress'
-        blockchain.addPendingTransaction(new Transaction(fromAddress, toAddress, 50));
+        blockchain.addPendingTransaction(TestTransactionProvider.getTransaction(fromAddress, toAddress, 50));
 
         const block = new Block(2, new Date().toISOString(), blockchain.pendingTransactions, blockchain.getLatestBlock().hash);
         block.mineBlock(blockchain.difficulty);
@@ -51,7 +53,7 @@ describe('Blockchain', () => {
 
         expect(blockchain.getBalanceOfAddress(fromAddress)).toBe(100);
 
-        const invalidTransaction = new Transaction(fromAddress, toAddress, 200 + 1);
+        const invalidTransaction = new Transaction(fromAddress, toAddress, 200 + 1, 'REGULAR', 'now');
 
         expect(() => {
             blockchain.addPendingTransaction(invalidTransaction);
@@ -67,7 +69,7 @@ describe('Blockchain', () => {
         expect(blockchain.getBalanceOfAddress(fromAddress)).toBe(100);
 
         // Transfer 50 from 'fromAddress' to 'toAddress'
-        const validTransaction = new Transaction(fromAddress, toAddress, 50);
+        const validTransaction = new Transaction(fromAddress, toAddress, 50, 'REGULAR', 'now');
         blockchain.addPendingTransaction(validTransaction);
 
         const block = new Block(2, new Date().toISOString(), blockchain.pendingTransactions, blockchain.getLatestBlock().hash);
@@ -87,7 +89,7 @@ describe('Blockchain', () => {
         blockchain.addBlock(TestBlockProvider.getBlockWithBalance(blockchain, fromAddress, 100));
 
         // Create a pending transaction
-        blockchain.addPendingTransaction(new Transaction(fromAddress, toAddress, 50));
+        blockchain.addPendingTransaction(new Transaction(fromAddress, toAddress, 50, 'REGULAR', 'now'));
 
         expect(blockchain.getEffectiveBalanceOfAddress(fromAddress)).toBe(50); // Subtracted pending transaction
         expect(blockchain.getEffectiveBalanceOfAddress(toAddress)).toBe(50);   // Added pending transaction
@@ -95,8 +97,8 @@ describe('Blockchain', () => {
 
     it('should add a valid block to the chain', () => {
         const transactions: Transaction[] = [
-            new Transaction('address1', 'address2', 100),
-            new Transaction('address2', 'address3', 50)
+            new Transaction('address1', 'address2', 100, 'REGULAR', 'now'),
+            new Transaction('address2', 'address3', 50, 'REGULAR', 'now')
         ];
 
         const newBlock = new Block(1, new Date().toISOString(), transactions, blockchain.getLatestBlock().hash);

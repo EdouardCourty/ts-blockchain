@@ -26,16 +26,6 @@ class Block {
             .digest('hex');
     }
 
-    // Proof-of-work algorithm to ensure the block has enough difficulty
-    mineBlock(difficulty: number) {
-        const target = Array(difficulty + 1).join('0');
-
-        while (this.hash.substring(0, difficulty) !== target) {
-            this.nonce++;
-            this.hash = this.calculateHash();
-        }
-    }
-
     isValidProofOfWork(difficulty: number): boolean {
         const target = Array(difficulty + 1).join('0');
         return this.hash.substring(0, difficulty) === target;
@@ -46,7 +36,7 @@ class Block {
 
         // Reconstruct transactions from JSON data if necessary
         const transactionObjects = transactions.map((tx: any) => {
-            return new Transaction(tx.fromAddress, tx.toAddress, tx.amount, tx.type);
+            return new Transaction(tx.fromAddress, tx.toAddress, tx.amount, tx.type, tx.timestamp);
         });
 
         const block = new Block(index, timestamp, transactionObjects, previousHash);

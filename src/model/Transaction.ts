@@ -7,14 +7,22 @@ export type TransactionType = 'REWARD' | 'REGULAR';
 
 class Transaction {
     fromAddress: string | null;
+    timestamp: string;
     toAddress: string;
     amount: number;
     signature: string;
     type: TransactionType;
 
-    constructor(fromAddress: string | null, toAddress: string, amount: number, type: TransactionType = 'REGULAR') {
+    constructor(
+        fromAddress: string | null,
+        toAddress: string,
+        amount: number,
+        type: TransactionType = 'REGULAR',
+        timestamp: string
+    ) {
         this.fromAddress = fromAddress;
         this.toAddress = toAddress;
+        this.timestamp = timestamp;
         this.amount = amount;
         this.signature = '';
         this.type = type;
@@ -24,7 +32,7 @@ class Transaction {
     calculateHash(): string {
         return crypto
             .createHash('sha256')
-            .update(this.fromAddress + this.toAddress + this.amount)
+            .update(this.fromAddress + this.toAddress + this.amount + this.timestamp)
             .digest('hex');
     }
 

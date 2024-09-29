@@ -51,7 +51,11 @@ class BlockchainPersister {
         });
 
         blockchain.pendingTransactions = data.pendingTransactions.map((tx: any) => {
-            return new Transaction(tx.fromAddress, tx.toAddress, tx.amount, tx.type);
+            return new Transaction(tx.fromAddress, tx.toAddress, tx.amount, tx.type, tx.timestamp);
+        });
+
+        blockchain.transactionBuffer = data.transactionBuffer.map((tx: any) => {
+            return new Transaction(tx.fromAddress, tx.toAddress, tx.amount, tx.type, tx.timestamp);
         });
 
         return blockchain;

@@ -32,7 +32,7 @@ program
         const publicKey = WalletService.getPublicKeyFromPrivateKey(privateKey);
 
         // Create and sign the transaction
-        const transaction = new Transaction(publicKey, to, Number(amount));
+        const transaction = new Transaction(publicKey, to, Number(amount), 'REGULAR', new Date().toISOString());
         const signature = WalletService.signTransaction(privateKey, transaction);
         transaction.signature = signature;
 

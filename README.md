@@ -4,7 +4,7 @@ This is a simple blockchain implementation in TypeScript.
 
 ## Installation
 
-```bash
+```shell
 git clone git@github.com:EdoardCourty/ts-blockchain
 cd ts-blockchain
 yarn
@@ -30,7 +30,7 @@ yarn start
 - Balance
   - Get balance of an address
 - Mining
-  - Proof of Work (Running in a worker thread to ensure non-blocking workflow)
+  - Proof of Work (Multi-threaded worker threads to ensure non-blocking workflow)
   - Rewarding
 
 ### To do

@@ -4,8 +4,8 @@ import Logger from '../service/Logger';
 import Transaction from "../model/Transaction";
 import Block from "../model/Block";
 
-import { Worker } from "node:worker_threads";
 import * as config from '../../configuration.json';
+import WorkerManager from "./WorkerManager";
 
 class BlockchainLifecycleManager {
     private static instance: BlockchainLifecycleManager; // Singleton instance
@@ -21,10 +21,11 @@ class BlockchainLifecycleManager {
 
     // Singleton pattern: Get the single instance of BlockchainLifecycleManager
     public static getInstance(): BlockchainLifecycleManager {
-        if (!BlockchainLifecycleManager.instance) {
-            BlockchainLifecycleManager.instance = new BlockchainLifecycleManager();
+        if (!this.instance) {
+            this.instance = new BlockchainLifecycleManager();
         }
-        return BlockchainLifecycleManager.instance;
+
+        return this.instance;
     }
 
     // Get the blockchain instance
@@ -51,7 +52,7 @@ class BlockchainLifecycleManager {
                 return;
             }
 
-            this.startMiningInWorker(config.miningRewardAddress);
+            this.startMiningInWorker(config.miningRewardAddress, config.workers);
         }, config.blockTime);
     }
 
@@ -72,7 +73,8 @@ class BlockchainLifecycleManager {
             null,
             miningRewardAddress,
             this.blockchain.miningReward,
-            'REWARD'
+            'REWARD',
+            new Date().toISOString()
         );
 
         return new Block(
@@ -86,24 +88,19 @@ class BlockchainLifecycleManager {
         );
     }
 
-    private startMiningInWorker(miningRewardAddress: string): void {
+    private startMiningInWorker(miningRewardAddress: string, step: number): void {
         Logger.info('Mining started.');
         this.isMining = true;
 
         const mineableBlock = this.generateMineableBlock(miningRewardAddress);
 
-        const worker = new Worker('./dist/worker/minerWorker.js', {
-            workerData: {
-                blockData: mineableBlock,
-                difficulty: this.blockchain.difficulty,
-            },
-        });
+        const workerManager = WorkerManager.getInstance();
 
-        worker.on('message', (message) => {
-            const { blockData } = message;
-            const newBlock = Block.fromJSON(JSON.parse(blockData));
+        workerManager.on('miningFinished', (blockData) => {
+            const newBlock = Block.fromJSON(blockData);
 
             Logger.info('Mining completed. Block mined: ' + newBlock.hash);
+            WorkerManager.reset();
 
             this.blockchain.addBlock(newBlock);
             this.saveBlockchain();
@@ -113,21 +110,8 @@ class BlockchainLifecycleManager {
             this.blockchain.transactionBuffer = [];
 
             this.isMining = false;
-        });
-
-        // Listen for errors
-        worker.on('error', (error: Error) => {
-            Logger.error('Mining failed with error: ' + error.message);
-            this.isMining = false;
-        });
-
-        // Clean up when the worker is done
-        worker.on('exit', (code: number) => {
-            if (code !== 0) {
-                Logger.error('Mining worker stopped with exit code ' + code);
-            }
-            this.isMining = false;
-        });
+        })
+        workerManager.mine(mineableBlock, step);
     }
 
     // Add a new transaction and save the blockchain

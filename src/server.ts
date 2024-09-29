@@ -13,6 +13,7 @@ import blocksRoutes from './routes/blocksRoutes';
 import baseRoutes from './routes/baseRoutes';
 import Logger from "./service/Logger";
 import BlockchainLifecycleManager from "./service/BlockchainLifecycleManager";
+import ASCIIArt from "./service/ASCIIArt";
 
 const app = express();
 app.use(express.json());
@@ -38,6 +39,8 @@ app.use('/balance', balanceRoutes);
 app.use('/blocks', blocksRoutes);
 app.use('/mining', miningRoutes);
 app.use('/', baseRoutes);
+
+ASCIIArt.welcomeMessage();
 
 // Start the server
 app.listen(PORT, () => {
