@@ -36,7 +36,7 @@ class Block {
 
         // Reconstruct transactions from JSON data if necessary
         const transactionObjects = transactions.map((tx: any) => {
-            return new Transaction(tx.fromAddress, tx.toAddress, tx.amount, tx.type, tx.timestamp);
+            return Transaction.fromJSON(tx);
         });
 
         const block = new Block(index, timestamp, transactionObjects, previousHash);
@@ -44,6 +44,17 @@ class Block {
         block.nonce = nonce;  // Set the nonce from JSON data
 
         return block;
+    }
+
+    toJSON(): object {
+        return {
+            index: this.index,
+            timestamp: this.timestamp,
+            transactions: this.transactions.map((tx) => tx.toJSON()),
+            previousHash: this.previousHash,
+            hash: this.hash,
+            nonce: this.nonce
+        };
     }
 }
 

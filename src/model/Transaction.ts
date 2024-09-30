@@ -52,6 +52,24 @@ class Transaction {
 
         return publicKey.verify(this.calculateHash(), this.signature);
     }
+
+    static fromJSON(data: any): Transaction {
+        const transaction = new Transaction(data.fromAddress, data.toAddress, data.amount, data.type, data.timestamp);
+        transaction.signature = data.signature;
+
+        return transaction;
+    }
+
+    public toJSON(): object {
+        return {
+            fromAddress: this.fromAddress,
+            toAddress: this.toAddress,
+            amount: this.amount,
+            signature: this.signature,
+            type: this.type,
+            timestamp: this.timestamp,
+        }
+    }
 }
 
 export default Transaction;

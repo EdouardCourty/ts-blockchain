@@ -6,6 +6,8 @@ import Block from "../model/Block";
 
 import * as config from '../../configuration.json';
 import WorkerManager from "./WorkerManager";
+import PeerManager from "./PeerManager";
+import InvalidBlockError from "../error/InvalidBlockError";
 
 class BlockchainLifecycleManager {
     private static instance: BlockchainLifecycleManager; // Singleton instance
@@ -59,6 +61,7 @@ class BlockchainLifecycleManager {
     // Stop the mining loop
     public stopMiningLoop(): void {
         if (this.miningInterval !== null) {
+            WorkerManager.reset();
             clearInterval(this.miningInterval);
             this.miningInterval = null;
             Logger.info('Mining loop has been stopped.');
@@ -93,7 +96,6 @@ class BlockchainLifecycleManager {
         this.isMining = true;
 
         const mineableBlock = this.generateMineableBlock(miningRewardAddress);
-
         const workerManager = WorkerManager.getInstance();
 
         workerManager.on('miningFinished', (blockData) => {
@@ -103,23 +105,61 @@ class BlockchainLifecycleManager {
             WorkerManager.reset();
 
             this.blockchain.addBlock(newBlock);
-            this.saveBlockchain();
 
             // Move the buffered transactions to the pending transactions
             this.blockchain.pendingTransactions = [...this.blockchain.transactionBuffer];
             this.blockchain.transactionBuffer = [];
 
             this.isMining = false;
+            this.saveBlockchain();
+
+            PeerManager.getInstance().broadcastNewBlock(newBlock);
         })
         workerManager.mine(mineableBlock, step);
     }
 
+    public addBlock(block: Block): void {
+        block.transactions.forEach((transaction) => {
+            if (!transaction.isValid()) {
+                throw new InvalidBlockError('Invalid transaction in block');
+            }
+        });
+
+        const rewardTransactions = block.transactions.filter((transaction) => transaction.type === 'REWARD')
+        if (rewardTransactions.length !== 1) {
+            throw new InvalidBlockError('Block must contain exactly one reward transaction');
+        }
+
+        this.blockchain.addBlock(block);
+
+        const newBlockTransactionSignatures: string[] = block.transactions.map((transaction) => {
+            return transaction.signature;
+        });
+
+        this.blockchain.pendingTransactions = [...this.blockchain.pendingTransactions, ...this.blockchain.transactionBuffer];
+        this.blockchain.transactionBuffer = [];
+
+        // Remove pending transactions from the local blockchain that were processed in the new block
+        this.blockchain.pendingTransactions = this.blockchain.pendingTransactions.filter((transaction) => {
+            return !newBlockTransactionSignatures.includes(transaction.signature);
+        });
+
+        this.saveBlockchain();
+
+        this.stopMiningLoop();
+        this.startMiningLoop();
+    }
+
     // Add a new transaction and save the blockchain
-    public addTransaction(transaction: Transaction): void {
+    public addTransaction(transaction: Transaction, broadcast: boolean = false): void {
         if (this.isMining) {
             this.blockchain.addBufferedTransactions(transaction);
         } else {
             this.blockchain.addPendingTransaction(transaction);
+        }
+
+        if (broadcast) {
+            PeerManager.getInstance().broadcastNewTransaction(transaction);
         }
 
         this.saveBlockchain();

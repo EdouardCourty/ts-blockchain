@@ -1,5 +1,6 @@
 import express from 'express';
 import expressWinston from 'express-winston';
+import helmet from "helmet";
 
 import blockchainRoutes from './routes/blockchainRoutes';
 import transactionRoutes from './routes/transactionRoutes';
@@ -15,6 +16,8 @@ import Logger from "./service/Logger";
 import BlockchainLifecycleManager from "./service/BlockchainLifecycleManager";
 import ASCIIArt from "./service/ASCIIArt";
 
+import { addNodeHeaders } from "./middleware/headerMiddleware";
+
 const app = express();
 app.use(express.json());
 
@@ -29,6 +32,9 @@ app.use(
         colorize: false,
     })
 );
+
+app.use(addNodeHeaders);
+app.use(helmet());
 
 // Set up routes
 app.use('/blockchain', blockchainRoutes);

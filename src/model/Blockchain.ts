@@ -85,6 +85,7 @@ class Blockchain {
 
     public addBlock(newBlock: Block) {
         const latestBlock = this.getLatestBlock();
+
         if (newBlock.previousHash !== latestBlock.hash) {
             throw new InvalidBlockError('Invalid previous hash');
         }

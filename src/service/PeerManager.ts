@@ -1,11 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import axios from 'axios';
 
 import * as config from '../../configuration.json';
 
 import Logger from "./Logger";
 import Block from "../model/Block";
+import httpClient from "./HttpClient";
+import Transaction from "../model/Transaction";
 
 class PeerManager {
     private static instance: PeerManager;
@@ -78,10 +79,24 @@ class PeerManager {
     public async broadcastNewBlock(block: Block): Promise<void> {
         for (const peerUrl of this.peers) {
             try {
-                await axios.post(`${peerUrl}/blockchain/new-block`, { block });
+                await httpClient.post(`${peerUrl}/blocks`, block.toJSON());
                 Logger.info(`Successfully broadcasted block to peer: ${peerUrl}`);
             } catch (error: any) {
-                Logger.error(`Error broadcasting block to peer ${peerUrl}: ${error.message}`);
+                Logger.error(`Error broadcasting block to peer ${peerUrl}: ${error.message} - ${JSON.stringify(error.response?.data)}`);
+            }
+        }
+    }
+
+    public async broadcastNewTransaction(transaction: Transaction): Promise<void> {
+        for (const peerUrl of this.peers) {
+            try {
+                await httpClient.post(`${peerUrl}/transactions`, {
+                    ...transaction.toJSON(),
+                    isBroadcast: true
+                });
+                Logger.info(`Successfully broadcasted transaction to peer: ${peerUrl}`);
+            } catch (error: any) {
+                Logger.error(`Error broadcasting transaction to peer ${peerUrl}: ${error.message} - ${JSON.stringify(error.response?.data)}`);
             }
         }
     }

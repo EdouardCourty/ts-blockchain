@@ -42,9 +42,10 @@ program
             toAddress: transaction.toAddress,
             amount: transaction.amount,
             signature: transaction.signature,
+            timestamp: transaction.timestamp,
         };
 
-        console.log(signedTransaction, JSON.stringify(signedTransaction));
+        console.log(JSON.stringify(signedTransaction));
     });
 
 program.parse(process.argv);

@@ -8,5 +8,5 @@ const block = Block.fromJSON(blockData);
 const minedBlock = Miner.mineBlock(block, difficulty, step, startNonce)
 
 parentPort?.postMessage({
-    blockData: JSON.stringify(minedBlock)
+    blockData: minedBlock.toJSON(),
 });

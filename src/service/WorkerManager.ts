@@ -44,7 +44,7 @@ class WorkerManager extends EventEmitter {
     private spawnWorker(startNonce: number, step: number, block: Block): Worker {
         const worker = new Worker('./dist/worker/minerWorker.js', {
             workerData: {
-                blockData: block,
+                blockData: block.toJSON(),
                 difficulty: config.difficulty,
                 startNonce,
                 step,
@@ -53,9 +53,9 @@ class WorkerManager extends EventEmitter {
 
         worker.on('message', (message) => {
             const { blockData } = message;
-            const minedBlock = Block.fromJSON(JSON.parse(blockData));
+            const minedBlock = Block.fromJSON(blockData);
 
-            const elapsed = (Date.now() - (this.miningStartTimestamp ?? Date.now())) / 1000;
+            const elapsed = (Date.now() - (this.miningStartTimestamp || Date.now())) / 1000;
             Logger.info(`Mining completed by worker. Block mined with nonce: ${minedBlock.nonce}. Took ~${elapsed.toFixed(2)} seconds.`);
 
             this.terminateAllWorkers();

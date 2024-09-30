@@ -3,7 +3,7 @@ import Transaction from "../../src/model/Transaction";
 class TestTransactionProvider {
     public static getTransaction(from: string, to: string, amount: number, signature: string|null = null): Transaction {
         const newTransaction = new Transaction(from, to, amount, 'REGULAR', new Date().toISOString());
-        newTransaction.signature = signature ?? 'signature_' + newTransaction.calculateHash();
+        newTransaction.signature = signature || 'signature_' + newTransaction.calculateHash();
 
         return newTransaction;
     }

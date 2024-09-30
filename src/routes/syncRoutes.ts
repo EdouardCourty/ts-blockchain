@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import axios from 'axios';
 
 import Logger from "../service/Logger";
 import BlockchainLifecycleManager from "../service/BlockchainLifecycleManager";
 import PeerManager from "../service/PeerManager";
+import httpClient from "../service/HttpClient";
 
 const router = Router();
 
@@ -15,7 +15,7 @@ router.get('/', async (_, res) => {
 
     for (const peerUrl of peers) {
         try {
-            const response = await axios.get(`${peerUrl}/blockchain`);
+            const response = await httpClient.get(`${peerUrl}/blockchain`);
             const peerBlockchain = response.data.chain;
 
             if (peerBlockchain.length > longestChain.length && blockchain.isChainValid()) {
