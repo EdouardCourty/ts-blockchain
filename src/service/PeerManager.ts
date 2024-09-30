@@ -87,6 +87,7 @@ class PeerManager {
         }
     }
 
+    // Broadcast a new transaction to all peers
     public async broadcastNewTransaction(transaction: Transaction): Promise<void> {
         for (const peerUrl of this.peers) {
             try {
