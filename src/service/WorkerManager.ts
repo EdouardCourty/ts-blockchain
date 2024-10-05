@@ -26,6 +26,7 @@ class WorkerManager extends EventEmitter {
 
     // Start the mining process using multiple workers, each incrementing by "step"
     public mine(block: Block, step: number): void {
+        console.log('CALLED');
         if (this.isMining) {
             Logger.info('Mining is already in progress.');
             return;

@@ -4,12 +4,14 @@ import * as path from 'path';
 import * as config from '../../configuration.json';
 
 import Logger from "./Logger";
-import Block from "../model/Block";
 import httpClient from "./HttpClient";
+import Block from "../model/Block";
 import Transaction from "../model/Transaction";
+import Blockchain from "../model/Blockchain";
 
 class PeerManager {
     private static instance: PeerManager;
+
     private peers: string[];
     private readonly peersFilePath: string;
 
@@ -100,6 +102,25 @@ class PeerManager {
                 Logger.error(`Error broadcasting transaction to peer ${peerUrl}: ${error.message} - ${JSON.stringify(error.response?.data)}`);
             }
         }
+    }
+
+    // Fetch the blockchain from a peer
+    async fetchBlockchain(peerUrl: string): Promise<Blockchain|null> {
+        try {
+            const response = await httpClient.get(`${peerUrl}/blockchain`);
+            return Blockchain.fromJSON(response.data);
+        } catch (error: any) {
+            Logger.error(`Failed to fetch blockchain from peer ${peerUrl}: ${error.message}`);
+            return null;
+        }
+    }
+
+    // Fetch all peer blockchains
+    async fetchAllPeerBlockchains(): Promise<Blockchain[]> {
+        const peers = this.loadPeers();
+        const blockchains = await Promise.all(peers.map(peer => this.fetchBlockchain(peer)));
+
+        return blockchains.filter(blockchain => blockchain !== null);  // Filter out null responses
     }
 }
 

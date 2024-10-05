@@ -10,7 +10,8 @@ import PeerManager from "./PeerManager";
 import InvalidBlockError from "../error/InvalidBlockError";
 
 class BlockchainLifecycleManager {
-    private static instance: BlockchainLifecycleManager; // Singleton instance
+    private static instance: BlockchainLifecycleManager;
+
     private blockchain: Blockchain;
     private persister: BlockchainPersister;
     private miningInterval: NodeJS.Timeout | null = null;
@@ -18,7 +19,7 @@ class BlockchainLifecycleManager {
 
     private constructor() {
         this.persister = new BlockchainPersister(config.blockchainFile);
-        this.blockchain = this.persister.loadBlockchain(config.difficulty, config.miningReward);
+        this.blockchain = this.persister.loadBlockchain(config.difficulty, config.miningReward, config.blockSize);
     }
 
     // Singleton pattern: Get the single instance of BlockchainLifecycleManager
@@ -60,10 +61,13 @@ class BlockchainLifecycleManager {
 
     // Stop the mining loop
     public stopMiningLoop(): void {
+        WorkerManager.reset();
+        this.isMining = false;
+
         if (this.miningInterval !== null) {
-            WorkerManager.reset();
             clearInterval(this.miningInterval);
             this.miningInterval = null;
+
             Logger.info('Mining loop has been stopped.');
         } else {
             Logger.info('Mining loop is not currently running.');
@@ -106,9 +110,12 @@ class BlockchainLifecycleManager {
 
             this.blockchain.addBlock(newBlock);
 
-            // Move the buffered transactions to the pending transactions
-            this.blockchain.pendingTransactions = [...this.blockchain.transactionBuffer];
-            this.blockchain.transactionBuffer = [];
+            // Move a maximum of `blockSize` transactions from the buffer to the pending transactions
+            const transactionsToTransfer = this.blockchain.transactionBuffer.slice(0, this.blockchain.blockSize);
+            this.blockchain.pendingTransactions = [...transactionsToTransfer];
+
+            // Remove the transferred transactions from the buffer
+            this.blockchain.transactionBuffer = this.blockchain.transactionBuffer.slice(this.blockchain.blockSize);
 
             this.isMining = false;
             this.saveBlockchain();
@@ -156,6 +163,12 @@ class BlockchainLifecycleManager {
             this.blockchain.addBufferedTransactions(transaction);
         } else {
             this.blockchain.addPendingTransaction(transaction);
+
+            if (this.blockchain.pendingTransactions.length >= this.blockchain.blockSize) {
+                Logger.info('Maximum block size reached. Mining a new block.');
+
+                this.startMiningInWorker(config.miningRewardAddress, config.workers);
+            }
         }
 
         if (broadcast) {
@@ -163,6 +176,49 @@ class BlockchainLifecycleManager {
         }
 
         this.saveBlockchain();
+    }
+
+    // Synchronize with peers' blockchains on startup
+    public async synchronizeWithPeers(): Promise<boolean> {
+        Logger.info('Synchronizing with peers...');
+        const peerBlockchains = await PeerManager.getInstance().fetchAllPeerBlockchains();
+
+        let longestValidChain: Blockchain | null = null;
+
+        peerBlockchains.forEach((peerChain: Blockchain) => {
+            if (peerChain.isChainValid() && peerChain.chain.length > this.blockchain.chain.length) {
+                if (this.hasCommonHistory(peerChain)) {
+                    longestValidChain = peerChain;
+                }
+            }
+        });
+
+        if (longestValidChain) {
+            Logger.info('Found a valid longer blockchain from peers. Replacing local chain.');
+            this.blockchain = longestValidChain;
+
+            this.saveBlockchain();
+            return true;
+        }
+
+        Logger.info('No valid longer blockchain found.');
+        return false;
+    }
+
+    // Check if the local blockchain has common history with a peer blockchain
+    private hasCommonHistory(peerChain: Blockchain): boolean {
+        const minLength = Math.min(this.blockchain.chain.length, peerChain.chain.length);
+
+        for (let i = 0; i < minLength; i++) {
+            const localBlock = this.blockchain.chain[i];
+            const peerBlock = peerChain.chain[i];
+
+            if (localBlock.hash !== peerBlock.hash) {
+                return false;  // Chains diverge at some point
+            }
+        }
+
+        return true;  // Chains have common history up to the length of the shorter chain
     }
 }
 

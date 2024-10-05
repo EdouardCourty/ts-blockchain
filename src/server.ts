@@ -49,11 +49,13 @@ app.use('/', baseRoutes);
 ASCIIArt.welcomeMessage();
 
 // Start the server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     Logger.info(`Server running on port ${PORT}`);
 
-    const blockchain = BlockchainLifecycleManager.getInstance().getBlockchain();
+    await BlockchainLifecycleManager.getInstance().synchronizeWithPeers();
     BlockchainLifecycleManager.getInstance().startMiningLoop();
 
-    Logger.info(`Blockchain difficulty: ${blockchain.difficulty}, mining reward: ${blockchain.miningReward}`);
+    const blockchain = BlockchainLifecycleManager.getInstance().getBlockchain();
+
+    Logger.info(`Blockchain difficulty: ${blockchain.difficulty}, mining reward: ${blockchain.miningReward}.`);
 });

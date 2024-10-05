@@ -6,14 +6,18 @@ import InvalidBlockError from '../../src/error/InvalidBlockError';
 // @ts-ignore
 import TestBlockProvider from '../support/TestBlockProvider';
 import TestTransactionProvider from "../support/TestTransactionProvider";
+import Miner from "../../src/service/Miner";
+
+jest.mock('../../src/service/Logger');
 
 describe('Blockchain', () => {
     let blockchain: Blockchain;
     const miningReward = 100;
     const difficulty = 1;
+    const blockSize = 10;
 
     beforeEach(() => {
-        blockchain = new Blockchain(difficulty, miningReward);
+        blockchain = new Blockchain(difficulty, miningReward, blockSize);
     });
 
     it('should initialize with a genesis block', () => {
@@ -36,8 +40,8 @@ describe('Blockchain', () => {
         // Transfer funds from 'fromAddress' to 'toAddress'
         blockchain.addPendingTransaction(TestTransactionProvider.getTransaction(fromAddress, toAddress, 50));
 
-        const block = new Block(2, new Date().toISOString(), blockchain.pendingTransactions, blockchain.getLatestBlock().hash);
-        block.mineBlock(blockchain.difficulty);
+        let block = new Block(2, new Date().toISOString(), blockchain.pendingTransactions, blockchain.getLatestBlock().hash);
+        block = Miner.mineBlock(block, blockchain.difficulty);
 
         blockchain.addBlock(block);
 
@@ -72,8 +76,8 @@ describe('Blockchain', () => {
         const validTransaction = new Transaction(fromAddress, toAddress, 50, 'REGULAR', 'now');
         blockchain.addPendingTransaction(validTransaction);
 
-        const block = new Block(2, new Date().toISOString(), blockchain.pendingTransactions, blockchain.getLatestBlock().hash);
-        block.mineBlock(blockchain.difficulty);
+        let block = new Block(2, new Date().toISOString(), blockchain.pendingTransactions, blockchain.getLatestBlock().hash);
+        block = Miner.mineBlock(block, blockchain.difficulty);
 
         blockchain.addBlock(block);
 
@@ -101,8 +105,8 @@ describe('Blockchain', () => {
             new Transaction('address2', 'address3', 50, 'REGULAR', 'now')
         ];
 
-        const newBlock = new Block(1, new Date().toISOString(), transactions, blockchain.getLatestBlock().hash);
-        newBlock.mineBlock(difficulty);
+        let newBlock = new Block(1, new Date().toISOString(), transactions, blockchain.getLatestBlock().hash);
+        newBlock = Miner.mineBlock(newBlock, blockchain.difficulty);
 
         blockchain.addBlock(newBlock);
 
@@ -111,8 +115,8 @@ describe('Blockchain', () => {
     });
 
     it('should throw InvalidBlockError for blocks with invalid previousHash', () => {
-        const invalidBlock = new Block(1, new Date().toISOString(), [], 'invalidPreviousHash');
-        invalidBlock.mineBlock(difficulty);
+        let invalidBlock = new Block(1, new Date().toISOString(), [], 'invalidPreviousHash');
+        invalidBlock = Miner.mineBlock(invalidBlock, difficulty);
 
         expect(() => {
             blockchain.addBlock(invalidBlock);
@@ -120,12 +124,13 @@ describe('Blockchain', () => {
     });
 
     it('should throw InvalidBlockError for blocks with invalid index', () => {
-        const validBlock = new Block(1, new Date().toISOString(), [], blockchain.getLatestBlock().hash);
-        validBlock.mineBlock(difficulty);
+        let validBlock = new Block(1, new Date().toISOString(), [], blockchain.getLatestBlock().hash);
+        validBlock = Miner.mineBlock(validBlock, difficulty);
+
         blockchain.addBlock(validBlock);
 
-        const invalidBlock = new Block(3, new Date().toISOString(), [], blockchain.getLatestBlock().hash); // Incorrect index
-        invalidBlock.mineBlock(difficulty);
+        let invalidBlock = new Block(3, new Date().toISOString(), [], blockchain.getLatestBlock().hash); // Incorrect index
+        invalidBlock = Miner.mineBlock(invalidBlock, difficulty);
 
         expect(() => {
             blockchain.addBlock(invalidBlock);

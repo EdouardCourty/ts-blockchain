@@ -13,14 +13,19 @@ class Blockchain {
 
     difficulty: number;
     miningReward: number;
+    blockSize: number;
 
-    constructor(difficulty: number, miningReward: number) {
+    size: number;
+
+    constructor(difficulty: number, miningReward: number, blockSize: number) {
         this.chain = [this.createGenesisBlock()];
+        this.size = 1;
         this.pendingTransactions = [];
         this.transactionBuffer = [];
 
         this.difficulty = difficulty;
         this.miningReward = miningReward;
+        this.blockSize = blockSize;
     }
 
     // Genesis block creation
@@ -64,7 +69,7 @@ class Blockchain {
 
         this.pendingTransactions.forEach((pendingTransaction) => {
             if (pendingTransaction.signature === transaction.signature) {
-                throw new DuplicateTransactionError('Duplicate transaction.');
+                // throw new DuplicateTransactionError('Duplicate transaction.');
             }
         })
 
@@ -100,6 +105,7 @@ class Blockchain {
 
         // Add the block to the chain
         this.chain.push(newBlock);
+        this.size++;
     }
 
     // Get balance of a particular address (considering only confirmed transactions)
@@ -153,6 +159,33 @@ class Blockchain {
         }
 
         return true;
+    }
+
+    public toJSON(): object {
+        return {
+            chain: this.chain.map((block) => block.toJSON()),
+            pendingTransactions: this.pendingTransactions.map((tx) => tx.toJSON()),
+            bufferedTransactions: this.transactionBuffer.map((tx) => tx.toJSON()),
+            difficulty: this.difficulty,
+            miningReward: this.miningReward,
+            size: this.size,
+        }
+    }
+
+    public static fromJSON(data: any): Blockchain {
+        const { chain, pendingTransactions, bufferedTransactions, difficulty, miningReward, blockSize, size } = data;
+
+        if (chain.length !== size) {
+            throw new Error('Invalid chain length');
+        }
+
+        const blockchain = new Blockchain(difficulty, miningReward, blockSize);
+        blockchain.chain = chain.map((blockData: any) => Block.fromJSON(blockData));
+        blockchain.pendingTransactions = pendingTransactions.map((tx: any) => Transaction.fromJSON(tx));
+        blockchain.transactionBuffer = bufferedTransactions.map((tx: any) => Transaction.fromJSON(tx));
+        blockchain.size = size;
+
+        return blockchain;
     }
 }
 

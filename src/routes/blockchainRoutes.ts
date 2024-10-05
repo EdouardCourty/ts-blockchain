@@ -5,8 +5,8 @@ const router = Router();
 
 // GET /blockchain - Retrieve the blockchain
 router.get('/', (_, res) => {
-    const blockchain = BlockchainLifecycleManager.getInstance();
-    res.json(blockchain);
+    const blockchain = BlockchainLifecycleManager.getInstance().getBlockchain();
+    res.json(blockchain.toJSON());
 
     return res.end();
 });

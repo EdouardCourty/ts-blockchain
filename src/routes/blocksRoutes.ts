@@ -29,7 +29,7 @@ router.post('/', (req, res) => {
 
 // GET /blocks - Retrieve the entire blockchain
 router.get('/', (_, res) => {
-    res.json({ chain: BlockchainLifecycleManager.getInstance().getBlockchain().chain });
+    res.json(BlockchainLifecycleManager.getInstance().getBlockchain().chain);
 
     return res.end();
 });
