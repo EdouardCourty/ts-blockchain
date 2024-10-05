@@ -1,23 +1,31 @@
 import Block from './Block';
 import Transaction from './Transaction';
 
+import InsufficientFundsError from "../error/InsufficientFundsError";
+import InvalidBlockError from "../error/InvalidBlockError";
+import DuplicateTransactionError from "../error/DuplicateTransactionError";
+
 class Blockchain {
     chain: Block[];
+
     pendingTransactions: Transaction[];
     transactionBuffer: Transaction[];
 
     difficulty: number;
     miningReward: number;
-    isMining: boolean;
+    blockSize: number;
 
-    constructor(difficulty: number, miningReward: number) {
+    size: number;
+
+    constructor(difficulty: number, miningReward: number, blockSize: number) {
         this.chain = [this.createGenesisBlock()];
+        this.size = 1;
         this.pendingTransactions = [];
         this.transactionBuffer = [];
 
         this.difficulty = difficulty;
         this.miningReward = miningReward;
-        this.isMining = false;
+        this.blockSize = blockSize;
     }
 
     // Genesis block creation
@@ -28,17 +36,6 @@ class Blockchain {
     // Get the latest block in the chain
     public getLatestBlock(): Block {
         return this.chain[this.chain.length - 1];
-    }
-
-    // Mine pending transactions and reward the miner
-    public minePendingTransactions(miningRewardAddress: string): Block {
-        const rewardTx = new Transaction(null, miningRewardAddress, this.miningReward, 'REWARD');
-        this.pendingTransactions.push(rewardTx);
-
-        const block = new Block(this.chain.length, new Date().toISOString(), this.pendingTransactions, this.getLatestBlock().hash);
-        block.mineBlock(this.difficulty);
-
-        return block;
     }
 
     // Calculate the effective balance considering pending and confirmed transactions
@@ -63,12 +60,18 @@ class Blockchain {
 
         // If the sender's balance (including pending transactions) is less than the transaction amount, reject it
         if (transaction.fromAddress !== null && effectiveBalance < transaction.amount) {
-            throw new Error('Insufficient funds');
+            throw new InsufficientFundsError('Insufficient funds');
         }
     }
 
     public addPendingTransaction(transaction: Transaction) {
         this.verifyTransaction(transaction);
+
+        this.pendingTransactions.forEach((pendingTransaction) => {
+            if (pendingTransaction.signature === transaction.signature) {
+                // throw new DuplicateTransactionError('Duplicate transaction.');
+            }
+        })
 
         this.pendingTransactions.push(transaction);
     }
@@ -76,25 +79,33 @@ class Blockchain {
     public addBufferedTransactions(transaction: Transaction): void {
         this.verifyTransaction(transaction);
 
+        this.transactionBuffer.forEach((bufferedTransaction) => {
+            if (bufferedTransaction.signature === transaction.signature) {
+                throw new DuplicateTransactionError('Duplicate transaction.');
+            }
+        })
+
         this.transactionBuffer.push(transaction);
     }
 
     public addBlock(newBlock: Block) {
         const latestBlock = this.getLatestBlock();
+
         if (newBlock.previousHash !== latestBlock.hash) {
-            throw new Error('Invalid previous hash');
+            throw new InvalidBlockError('Invalid previous hash');
         }
 
         if (newBlock.index !== latestBlock.index + 1) {
-            throw new Error('Invalid index');
+            throw new InvalidBlockError('Invalid index');
         }
 
         if (!newBlock.isValidProofOfWork(this.difficulty)) {
-            throw new Error('Invalid proof of work');
+            throw new InvalidBlockError('Invalid proof of work');
         }
 
         // Add the block to the chain
         this.chain.push(newBlock);
+        this.size++;
     }
 
     // Get balance of a particular address (considering only confirmed transactions)
@@ -148,6 +159,33 @@ class Blockchain {
         }
 
         return true;
+    }
+
+    public toJSON(): object {
+        return {
+            chain: this.chain.map((block) => block.toJSON()),
+            pendingTransactions: this.pendingTransactions.map((tx) => tx.toJSON()),
+            bufferedTransactions: this.transactionBuffer.map((tx) => tx.toJSON()),
+            difficulty: this.difficulty,
+            miningReward: this.miningReward,
+            size: this.size,
+        }
+    }
+
+    public static fromJSON(data: any): Blockchain {
+        const { chain, pendingTransactions, bufferedTransactions, difficulty, miningReward, blockSize, size } = data;
+
+        if (chain.length !== size) {
+            throw new Error('Invalid chain length');
+        }
+
+        const blockchain = new Blockchain(difficulty, miningReward, blockSize);
+        blockchain.chain = chain.map((blockData: any) => Block.fromJSON(blockData));
+        blockchain.pendingTransactions = pendingTransactions.map((tx: any) => Transaction.fromJSON(tx));
+        blockchain.transactionBuffer = bufferedTransactions.map((tx: any) => Transaction.fromJSON(tx));
+        blockchain.size = size;
+
+        return blockchain;
     }
 }
 

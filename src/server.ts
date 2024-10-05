@@ -1,5 +1,6 @@
 import express from 'express';
 import expressWinston from 'express-winston';
+import helmet from "helmet";
 
 import blockchainRoutes from './routes/blockchainRoutes';
 import transactionRoutes from './routes/transactionRoutes';
@@ -13,6 +14,9 @@ import blocksRoutes from './routes/blocksRoutes';
 import baseRoutes from './routes/baseRoutes';
 import Logger from "./service/Logger";
 import BlockchainLifecycleManager from "./service/BlockchainLifecycleManager";
+import ASCIIArt from "./service/ASCIIArt";
+
+import { addNodeHeaders } from "./middleware/headerMiddleware";
 
 const app = express();
 app.use(express.json());
@@ -29,6 +33,9 @@ app.use(
     })
 );
 
+app.use(addNodeHeaders);
+app.use(helmet());
+
 // Set up routes
 app.use('/blockchain', blockchainRoutes);
 app.use('/transactions', transactionRoutes);
@@ -39,12 +46,16 @@ app.use('/blocks', blocksRoutes);
 app.use('/mining', miningRoutes);
 app.use('/', baseRoutes);
 
+ASCIIArt.welcomeMessage();
+
 // Start the server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     Logger.info(`Server running on port ${PORT}`);
 
-    const blockchain = BlockchainLifecycleManager.getInstance();
-    BlockchainLifecycleManager.startMiningLoop();
+    await BlockchainLifecycleManager.getInstance().synchronizeWithPeers();
+    BlockchainLifecycleManager.getInstance().startMiningLoop();
 
-    Logger.info(`Blockchain difficulty: ${blockchain.difficulty}, mining reward: ${blockchain.miningReward}`);
+    const blockchain = BlockchainLifecycleManager.getInstance().getBlockchain();
+
+    Logger.info(`Blockchain difficulty: ${blockchain.difficulty}, mining reward: ${blockchain.miningReward}.`);
 });

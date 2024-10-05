@@ -1,8 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
+
 import Blockchain from '../model/Blockchain';
-import Block from '../model/Block';
-import Transaction from '../model/Transaction';
 import Logger from './Logger';
 
 class BlockchainPersister {
@@ -13,16 +12,18 @@ class BlockchainPersister {
     }
 
     // Load the blockchain from the JSON file
-    public loadBlockchain(difficulty: number, reward: number): Blockchain {
+    public loadBlockchain(difficulty: number, miningReward: number, blockSize: number): Blockchain {
         if (fs.existsSync(this.blockchainFilePath)) {
             const rawData = fs.readFileSync(this.blockchainFilePath, 'utf8');
             const blockchainData = JSON.parse(rawData);
+            blockchainData.difficulty = difficulty;
+            blockchainData.miningReward = miningReward;
 
-            return BlockchainPersister.parseBlockchain(blockchainData, difficulty, reward);
+            return Blockchain.fromJSON(blockchainData);
         }
 
         // If the file doesn't exist, create a new blockchain
-        const newBlockchain = new Blockchain(difficulty, reward);
+        const newBlockchain = new Blockchain(difficulty, miningReward, blockSize);
 
         this.saveBlockchain(newBlockchain);
         return newBlockchain;
@@ -39,24 +40,6 @@ class BlockchainPersister {
 
         fs.writeFileSync(this.blockchainFilePath, blockchainData, 'utf8');
         Logger.info('Blockchain saved to file.');
-    }
-
-    // Helper function to parse the blockchain from JSON data
-    public static parseBlockchain(data: any, difficulty: number, reward: number): Blockchain {
-        const blockchain = new Blockchain(difficulty, reward);
-
-        blockchain.chain = data.chain.map((blockData: any) => {
-            const block = new Block(blockData.index, blockData.timestamp, blockData.transactions, blockData.previousHash);
-            block.hash = blockData.hash;
-            block.nonce = blockData.nonce;
-            return block;
-        });
-
-        blockchain.pendingTransactions = data.pendingTransactions.map((tx: any) => {
-            return new Transaction(tx.fromAddress, tx.toAddress, tx.amount, tx.type);
-        });
-
-        return blockchain;
     }
 }
 

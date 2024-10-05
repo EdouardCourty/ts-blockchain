@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import PeersSingleton from '../PeersSingleton';
+import PeerManager from "../service/PeerManager";
 
 const router = Router();
 
@@ -11,10 +11,10 @@ router.post('/', (req, res) => {
         return res.status(400).json({ error: 'Peer URL is required' });
     }
 
-    const added = PeersSingleton.addPeer(peerUrl);
+    const added = PeerManager.getInstance().addPeer(peerUrl);
 
     if (added) {
-        res.json({ message: 'Peer added successfully', peers: PeersSingleton.getPeers() });
+        res.json({ message: 'Peer added successfully', peers: PeerManager.getInstance().getPeers() });
     } else {
         res.status(400).json({ error: 'Peer already exists' });
     }
@@ -30,10 +30,10 @@ router.delete('/', (req, res) => {
         return res.status(400).json({ error: 'Peer URL is required' });
     }
 
-    const removed = PeersSingleton.removePeer(peerUrl);
+    const removed = PeerManager.getInstance().removePeer(peerUrl);
 
     if (removed) {
-        res.json({ message: 'Peer removed successfully', peers: PeersSingleton.getPeers() });
+        res.json({ message: 'Peer removed successfully', peers: PeerManager.getInstance().getPeers() });
     } else {
         res.status(400).json({ error: 'Peer not found' });
     }
@@ -43,7 +43,7 @@ router.delete('/', (req, res) => {
 
 // GET /peers - Retrieve all peers
 router.get('/', (_, res) => {
-    const peers = PeersSingleton.getPeers();
+    const peers = PeerManager.getInstance().getPeers();
     res.json({ peers });
 
     return res.end();

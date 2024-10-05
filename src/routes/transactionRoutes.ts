@@ -7,18 +7,18 @@ const router = Router();
 
 // POST /transactions - Accept a signed transaction
 router.post('/', (req, res) => {
-    const { fromAddress, toAddress, amount, signature } = req.body;
+    const transaction = Transaction.fromJSON(req.body);
 
-    if (!fromAddress || !toAddress || !amount || !signature) {
-        return res.status(400).json({ error: 'fromAddress, toAddress, amount, and signature are required' });
+    if (transaction.type === 'REWARD') {
+        return res.status(400).json({ error: 'Reward transactions cannot be broadcasted' });
     }
 
-    // Reconstruct the transaction
-    const transaction = new Transaction(fromAddress, toAddress, amount);
-    transaction.signature = signature;
+    if (transaction.fromAddress === null) {
+        return res.status(400).json({ error: 'Transaction has no origin address' });
+    }
 
     // Verify the transaction using the public key (fromAddress), message (hash), and signature
-    const isValidSignature = WalletService.verifySignature(transaction, fromAddress, signature);
+    const isValidSignature = WalletService.verifySignature(transaction, transaction.fromAddress, transaction.signature);
     if (!isValidSignature) {
         return res.status(400).json({ error: 'Invalid transaction signature' });
     }
@@ -29,8 +29,9 @@ router.post('/', (req, res) => {
     }
 
     try {
-        BlockchainLifecycleManager.addTransaction(transaction);
-        res.json({ message: 'Transaction successfully added to the blockchain', transaction });
+        BlockchainLifecycleManager.getInstance().addTransaction(transaction, !req.body.isBroadcast);
+
+        res.json({ message: 'Transaction successfully added to the blockchain', transaction: transaction.toJSON() });
     } catch (error: Error | any) {
         res.status(400).json({ error: error.message });
     }

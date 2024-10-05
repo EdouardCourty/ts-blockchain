@@ -2,34 +2,47 @@ import Blockchain from '../model/Blockchain';
 import BlockchainPersister from '../service/BlockchainPersister';
 import Logger from '../service/Logger';
 import Transaction from "../model/Transaction";
-
-import { Worker} from "node:worker_threads";
-
-import * as config from '../../configuration.json';
 import Block from "../model/Block";
 
-class BlockchainLifecycleManager {
-    private static instance: Blockchain;
-    private static persister = new BlockchainPersister(config.blockchainFile);
-    private static miningInterval: NodeJS.Timeout | null = null;
-    public static isMining: boolean = false;
+import * as config from '../../configuration.json';
+import WorkerManager from "./WorkerManager";
+import PeerManager from "./PeerManager";
+import InvalidBlockError from "../error/InvalidBlockError";
 
-    // Get the blockchain instance (singleton pattern)
-    static getInstance(): Blockchain {
+class BlockchainLifecycleManager {
+    private static instance: BlockchainLifecycleManager;
+
+    private blockchain: Blockchain;
+    private persister: BlockchainPersister;
+    private miningInterval: NodeJS.Timeout | null = null;
+    public isMining: boolean = false;
+
+    private constructor() {
+        this.persister = new BlockchainPersister(config.blockchainFile);
+        this.blockchain = this.persister.loadBlockchain(config.difficulty, config.miningReward, config.blockSize);
+    }
+
+    // Singleton pattern: Get the single instance of BlockchainLifecycleManager
+    public static getInstance(): BlockchainLifecycleManager {
         if (!this.instance) {
-            this.instance = this.persister.loadBlockchain(config.difficulty, config.miningReward);
+            this.instance = new BlockchainLifecycleManager();
         }
 
         return this.instance;
     }
 
+    // Get the blockchain instance
+    public getBlockchain(): Blockchain {
+        return this.blockchain;
+    }
+
     // Save the blockchain state
-    static saveInstance(): void {
-        this.persister.saveBlockchain(this.getInstance());
+    public saveBlockchain(): void {
+        this.persister.saveBlockchain(this.blockchain);
     }
 
     // Start the mining loop, which mines blocks at regular intervals
-    static startMiningLoop(): void {
+    public startMiningLoop(): void {
         if (this.miningInterval !== null) {
             Logger.info('Mining loop is already running.');
             return;
@@ -42,77 +55,170 @@ class BlockchainLifecycleManager {
                 return;
             }
 
-            this.startMiningInWorker(this.getInstance(), config.miningRewardAddress);
+            this.startMiningInWorker(config.miningRewardAddress, config.workers);
         }, config.blockTime);
     }
 
     // Stop the mining loop
-    static stopMiningLoop(): void {
+    public stopMiningLoop(): void {
+        WorkerManager.reset();
+        this.isMining = false;
+
         if (this.miningInterval !== null) {
             clearInterval(this.miningInterval);
             this.miningInterval = null;
+
             Logger.info('Mining loop has been stopped.');
         } else {
             Logger.info('Mining loop is not currently running.');
         }
     }
 
-    private static startMiningInWorker(blockchain: Blockchain, miningRewardAddress: string): void {
+    // Mine pending transactions and reward the miner
+    public generateMineableBlock(miningRewardAddress: string): Block {
+        const rewardTransaction = new Transaction(
+            null,
+            miningRewardAddress,
+            this.blockchain.miningReward,
+            'REWARD',
+            new Date().toISOString()
+        );
+
+        return new Block(
+            this.blockchain.chain.length,
+            new Date().toISOString(),
+            [
+                ...this.blockchain.pendingTransactions,
+                rewardTransaction,
+            ],
+            this.blockchain.getLatestBlock().hash
+        );
+    }
+
+    private startMiningInWorker(miningRewardAddress: string, step: number): void {
         Logger.info('Mining started.');
         this.isMining = true;
 
-        const worker = new Worker('./dist/worker/minerWorker.js', {
-            workerData: {
-                lastHash: blockchain.getLatestBlock().hash,
-                blockchainData: blockchain,
-                difficulty: this.getInstance().difficulty,
-                reward: this.getInstance().miningReward,
-                miningRewardAddress
-            }
-        });
+        const mineableBlock = this.generateMineableBlock(miningRewardAddress);
+        const workerManager = WorkerManager.getInstance();
 
-        worker.on('message', (message) => {
-            const { blockData } = message;
-            const newBlock = Block.fromJSON(JSON.parse(blockData));
+        workerManager.on('miningFinished', (blockData) => {
+            const newBlock = Block.fromJSON(blockData);
 
             Logger.info('Mining completed. Block mined: ' + newBlock.hash);
+            WorkerManager.reset();
 
-            this.getInstance().addBlock(newBlock);
-            this.saveInstance();
+            this.blockchain.addBlock(newBlock);
 
-            // Move the buffered transactions to the pending transactions
-            this.getInstance().pendingTransactions = [...this.getInstance().transactionBuffer];
-            this.getInstance().transactionBuffer = [];
+            // Move a maximum of `blockSize` transactions from the buffer to the pending transactions
+            const transactionsToTransfer = this.blockchain.transactionBuffer.slice(0, this.blockchain.blockSize);
+            this.blockchain.pendingTransactions = [...transactionsToTransfer];
+
+            // Remove the transferred transactions from the buffer
+            this.blockchain.transactionBuffer = this.blockchain.transactionBuffer.slice(this.blockchain.blockSize);
 
             this.isMining = false;
-        });
+            this.saveBlockchain();
 
-        // Listen for errors
-        worker.on('error', (error: Error) => {
-            Logger.error('Mining failed with error: ' + error.message);
-            this.isMining = false;
-        });
+            PeerManager.getInstance().broadcastNewBlock(newBlock);
+        })
+        workerManager.mine(mineableBlock, step);
+    }
 
-        // Clean up when the worker is done
-        worker.on('exit', (code: number) => {
-            if (code !== 0) {
-                Logger.error('Mining worker stopped with exit code ' + code);
+    public addBlock(block: Block): void {
+        block.transactions.forEach((transaction) => {
+            if (!transaction.isValid()) {
+                throw new InvalidBlockError('Invalid transaction in block');
             }
-            this.isMining = false;
         });
+
+        const rewardTransactions = block.transactions.filter((transaction) => transaction.type === 'REWARD')
+        if (rewardTransactions.length !== 1) {
+            throw new InvalidBlockError('Block must contain exactly one reward transaction');
+        }
+
+        this.blockchain.addBlock(block);
+
+        const newBlockTransactionSignatures: string[] = block.transactions.map((transaction) => {
+            return transaction.signature;
+        });
+
+        this.blockchain.pendingTransactions = [...this.blockchain.pendingTransactions, ...this.blockchain.transactionBuffer];
+        this.blockchain.transactionBuffer = [];
+
+        // Remove pending transactions from the local blockchain that were processed in the new block
+        this.blockchain.pendingTransactions = this.blockchain.pendingTransactions.filter((transaction) => {
+            return !newBlockTransactionSignatures.includes(transaction.signature);
+        });
+
+        this.saveBlockchain();
+
+        this.stopMiningLoop();
+        this.startMiningLoop();
     }
 
     // Add a new transaction and save the blockchain
-    static addTransaction(transaction: Transaction): void {
-        const blockchain = this.getInstance();
-
+    public addTransaction(transaction: Transaction, broadcast: boolean = false): void {
         if (this.isMining) {
-            blockchain.addBufferedTransactions(transaction);
+            this.blockchain.addBufferedTransactions(transaction);
         } else {
-            blockchain.addPendingTransaction(transaction);
+            this.blockchain.addPendingTransaction(transaction);
+
+            if (this.blockchain.pendingTransactions.length >= this.blockchain.blockSize) {
+                Logger.info('Maximum block size reached. Mining a new block.');
+
+                this.startMiningInWorker(config.miningRewardAddress, config.workers);
+            }
         }
 
-        this.saveInstance();
+        if (broadcast) {
+            PeerManager.getInstance().broadcastNewTransaction(transaction);
+        }
+
+        this.saveBlockchain();
+    }
+
+    // Synchronize with peers' blockchains on startup
+    public async synchronizeWithPeers(): Promise<boolean> {
+        Logger.info('Synchronizing with peers...');
+        const peerBlockchains = await PeerManager.getInstance().fetchAllPeerBlockchains();
+
+        let longestValidChain: Blockchain | null = null;
+
+        peerBlockchains.forEach((peerChain: Blockchain) => {
+            if (peerChain.isChainValid() && peerChain.chain.length > this.blockchain.chain.length) {
+                if (this.hasCommonHistory(peerChain)) {
+                    longestValidChain = peerChain;
+                }
+            }
+        });
+
+        if (longestValidChain) {
+            Logger.info('Found a valid longer blockchain from peers. Replacing local chain.');
+            this.blockchain = longestValidChain;
+
+            this.saveBlockchain();
+            return true;
+        }
+
+        Logger.info('No valid longer blockchain found.');
+        return false;
+    }
+
+    // Check if the local blockchain has common history with a peer blockchain
+    private hasCommonHistory(peerChain: Blockchain): boolean {
+        const minLength = Math.min(this.blockchain.chain.length, peerChain.chain.length);
+
+        for (let i = 0; i < minLength; i++) {
+            const localBlock = this.blockchain.chain[i];
+            const peerBlock = peerChain.chain[i];
+
+            if (localBlock.hash !== peerBlock.hash) {
+                return false;  // Chains diverge at some point
+            }
+        }
+
+        return true;  // Chains have common history up to the length of the shorter chain
     }
 }
 

@@ -5,13 +5,17 @@ describe('Transaction', () => {
         const fromAddress = 'address';
         const toAddress = 'address2';
         const amount = 100;
+        const type = 'REGULAR';
+        const timestamp = new Date().toISOString();
 
-        const transaction = new Transaction(fromAddress, toAddress, amount);
+        const transaction = new Transaction(fromAddress, toAddress, amount, type, timestamp);
 
         expect(transaction.fromAddress).toBe(fromAddress);
         expect(transaction.toAddress).toBe(toAddress);
         expect(transaction.amount).toBe(amount);
         expect(transaction.signature).toBe('');
+        expect(transaction.type).toBe(type);
+        expect(transaction.timestamp).toBe(timestamp);
     });
 
     it('should calculate a valid hash', () => {
@@ -19,7 +23,7 @@ describe('Transaction', () => {
         const toAddress = 'address2';
         const amount = 100;
 
-        const transaction = new Transaction(fromAddress, toAddress, amount);
+        const transaction = new Transaction(fromAddress, toAddress, amount, 'REGULAR', 'now');
         const hash = transaction.calculateHash();
 
         // Check that the hash is a valid SHA-256 hash (64 characters long)
@@ -31,7 +35,7 @@ describe('Transaction', () => {
         const toAddress = 'address2';
         const amount = 100;
 
-        const transaction = new Transaction(fromAddress, toAddress, amount);
+        const transaction = new Transaction(fromAddress, toAddress, amount, 'REGULAR', 'now');
 
         // Attempt to validate without a signature
         expect(() => transaction.isValid()).toThrow('No signature in this transaction');
@@ -41,14 +45,14 @@ describe('Transaction', () => {
         const toAddress = 'minerAddress';
         const amount = 50;
 
-        const transaction = new Transaction(null, toAddress, amount, 'REWARD');
+        const transaction = new Transaction(null, toAddress, amount, 'REWARD', 'now');
 
         // Reward transactions with no fromAddress should always be valid
         expect(transaction.isValid()).toBe(true);
     });
 
     it('should throw when using a wrong public key as address', () => {
-        const transaction = new Transaction('wrongAddress', 'address2', 100);
+        const transaction = new Transaction('wrongAddress', 'address2', 100, 'REGULAR', 'now');
 
         expect(() => transaction.isValid()).toThrow();
     });
