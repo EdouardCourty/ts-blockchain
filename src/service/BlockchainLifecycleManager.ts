@@ -10,7 +10,7 @@ import PeerManager from "./PeerManager";
 import InvalidBlockError from "../error/InvalidBlockError";
 
 class BlockchainLifecycleManager {
-    private static instance: BlockchainLifecycleManager;
+    private static instance: BlockchainLifecycleManager|null = null;
 
     private blockchain: Blockchain;
     private persister: BlockchainPersister;
@@ -29,6 +29,10 @@ class BlockchainLifecycleManager {
         }
 
         return this.instance;
+    }
+
+    public static resetInstance(): void {
+        this.instance = null;
     }
 
     // Get the blockchain instance
@@ -186,10 +190,14 @@ class BlockchainLifecycleManager {
         let longestValidChain: Blockchain | null = null;
 
         peerBlockchains.forEach((peerChain: Blockchain) => {
-            if (peerChain.isChainValid() && peerChain.chain.length > this.blockchain.chain.length) {
-                if (this.hasCommonHistory(peerChain)) {
-                    longestValidChain = peerChain;
-                }
+            const longerChainFoundSoFar = longestValidChain ? longestValidChain.chain.length : 0;
+            if (
+                peerChain.isChainValid()
+                && peerChain.size > longerChainFoundSoFar
+                && peerChain.size > this.blockchain.size
+                && this.shouldReplaceLocalBlockchain(peerChain)
+            ) {
+                longestValidChain = peerChain;
             }
         });
 
@@ -206,8 +214,12 @@ class BlockchainLifecycleManager {
     }
 
     // Check if the local blockchain has common history with a peer blockchain
-    private hasCommonHistory(peerChain: Blockchain): boolean {
-        const minLength = Math.min(this.blockchain.chain.length, peerChain.chain.length);
+    private shouldReplaceLocalBlockchain(peerChain: Blockchain): boolean {
+        if (this.blockchain.size <= 1) {
+            return true;  // Local chain is empty or has only the genesis block
+        }
+
+        const minLength = Math.min(this.blockchain.size, peerChain.size);
 
         for (let i = 0; i < minLength; i++) {
             const localBlock = this.blockchain.chain[i];

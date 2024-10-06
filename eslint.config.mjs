@@ -11,5 +11,6 @@ export default tseslint.config(
             "@typescript-eslint/no-explicit-any": "off"
         },
         files: ['src/**/*.ts', 'tests/**/*.ts'],
+        ignores: ['node_modules', 'dist'],
     },
 );

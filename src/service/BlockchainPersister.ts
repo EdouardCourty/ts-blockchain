@@ -19,7 +19,13 @@ class BlockchainPersister {
             blockchainData.difficulty = difficulty;
             blockchainData.miningReward = miningReward;
 
-            return Blockchain.fromJSON(blockchainData);
+            const blockchain = Blockchain.fromJSON(blockchainData);
+
+            if (!blockchain.isChainValid()) {
+                throw new Error('Blockchain is not valid.');
+            }
+
+            return blockchain;
         }
 
         // If the file doesn't exist, create a new blockchain

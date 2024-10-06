@@ -22,6 +22,8 @@ describe('BlockchainLifecycleManager', () => {
     beforeEach(() => {
         jest.clearAllMocks();
 
+        BlockchainLifecycleManager.resetInstance();
+
         const blockchain = new Blockchain(2, 100, 10);
         jest.spyOn(BlockchainPersister.prototype, 'loadBlockchain').mockReturnValue(blockchain);
 
@@ -165,36 +167,63 @@ describe('BlockchainLifecycleManager', () => {
             blockchainLifecycleManager.addBlock(block);
         }).toThrow(InvalidBlockError);
     });
+});
 
-    it('should replace its blockchain with a valid longer blockchain from a peer', async () => {
-        // Simulate a valid longer chain
-        const longerBlockchain = new Blockchain(2, 100, 5);
-        longerBlockchain.chain = [...blockchainLifecycleManager.getBlockchain().chain]; // Make sure of common history
+describe('BlockchainLifecycleManager - Synchronization', () => {
+    let blockchainLifecycleManager: BlockchainLifecycleManager;
 
-        const block1 = TestBlockProvider.getEmptyBlock(
-            longerBlockchain.getLatestBlock(),
-            blockchainLifecycleManager.getBlockchain().difficulty
-        );
-        const block2 = TestBlockProvider.getEmptyBlock(
-            block1,
-            blockchainLifecycleManager.getBlockchain().difficulty
-        );
+    beforeEach(() => {
+        jest.clearAllMocks();
+        BlockchainLifecycleManager.resetInstance();  // Reset singleton
 
-        longerBlockchain.addBlock(block1);
-        longerBlockchain.addBlock(block2);
+        const blockchain = new Blockchain(2, 100, 10);
+        jest.spyOn(BlockchainPersister.prototype, 'loadBlockchain').mockReturnValue(blockchain);
 
-        jest.spyOn(PeerManager.getInstance(), 'fetchAllPeerBlockchains').mockResolvedValue([longerBlockchain]);
+        const peerManager = new PeerManager();
+        jest.spyOn(PeerManager, 'getInstance').mockReturnValue(peerManager);
+
+        blockchainLifecycleManager = BlockchainLifecycleManager.getInstance();
+    });
+
+    it('should replace local chain if its length is 0 or 1 and a longer valid chain is found from peers', async () => {
+        const localBlockchain = blockchainLifecycleManager.getBlockchain();
+        localBlockchain.chain = [localBlockchain.chain[0]];  // Keep only the genesis block
+        expect(localBlockchain.size).toBe(1);
+
+        const peerBlockchain = new Blockchain(2, 100, 10);
+        const block1 = TestBlockProvider.getEmptyBlock(peerBlockchain.getLatestBlock(), peerBlockchain.difficulty);
+        const block2 = TestBlockProvider.getEmptyBlock(block1, peerBlockchain.difficulty);
+        peerBlockchain.addBlock(block1);
+        peerBlockchain.addBlock(block2);
+
+        jest.spyOn(PeerManager.getInstance(), 'fetchAllPeerBlockchains').mockResolvedValue([peerBlockchain]);
 
         const result = await blockchainLifecycleManager.synchronizeWithPeers();
-
         expect(result).toBe(true);
-        expect(blockchainLifecycleManager.getBlockchain()).toBe(longerBlockchain);
-        expect(BlockchainPersister.prototype.saveBlockchain).toHaveBeenCalledWith(longerBlockchain);
+        expect(blockchainLifecycleManager.getBlockchain().size).toBe(3);
         expect(Logger.info).toHaveBeenCalledWith('Found a valid longer blockchain from peers. Replacing local chain.');
     });
 
-    it('should not replace its blockchain if no valid longer chain is found', async () => {
-        const invalidBlockchain = new Blockchain(2, 100, 5); // Simulate an invalid chain
+    it('should not replace local chain if a valid peer chain with no common history is found, regardless of chain length', async () => {
+        const localBlockchain = blockchainLifecycleManager.getBlockchain();
+        const block1 = TestBlockProvider.getEmptyBlock(localBlockchain.getLatestBlock(), localBlockchain.difficulty);
+        localBlockchain.addBlock(block1);
+        expect(localBlockchain.size).toBe(2);
+
+        const peerBlockchain = new Blockchain(2, 100, 10);
+        const peerBlock1 = TestBlockProvider.getEmptyBlock(peerBlockchain.getLatestBlock(), peerBlockchain.difficulty);
+        peerBlockchain.addBlock(peerBlock1);
+
+        jest.spyOn(PeerManager.getInstance(), 'fetchAllPeerBlockchains').mockResolvedValue([peerBlockchain]);
+
+        const result = await blockchainLifecycleManager.synchronizeWithPeers();
+        expect(result).toBe(false);
+        expect(localBlockchain.size).toBe(2); // Should not be replaced
+        expect(Logger.info).toHaveBeenCalledWith('No valid longer blockchain found.');
+    });
+
+    it('should not replace the chain if no valid longer chain is found', async () => {
+        const invalidBlockchain = new Blockchain(2, 100, 5);
         jest.spyOn(invalidBlockchain, 'isChainValid').mockReturnValue(false);
         jest.spyOn(PeerManager.getInstance(), 'fetchAllPeerBlockchains').mockResolvedValue([invalidBlockchain]);
 
@@ -202,4 +231,27 @@ describe('BlockchainLifecycleManager', () => {
         expect(result).toBe(false);
         expect(Logger.info).toHaveBeenCalledWith('No valid longer blockchain found.');
     });
+
+    it('should replace the chain with a valid longer blockchain from a peer that shares a common history', async () => {
+        const longerBlockchain = new Blockchain(2, 100, 5);
+        longerBlockchain.chain = [...blockchainLifecycleManager.getBlockchain().chain];
+
+        const block1 = TestBlockProvider.getEmptyBlock(
+            longerBlockchain.getLatestBlock(),
+            blockchainLifecycleManager.getBlockchain().difficulty
+        );
+        const block2 = TestBlockProvider.getEmptyBlock(block1, blockchainLifecycleManager.getBlockchain().difficulty);
+
+        longerBlockchain.addBlock(block1);
+        longerBlockchain.addBlock(block2);
+
+        jest.spyOn(PeerManager.getInstance(), 'fetchAllPeerBlockchains').mockResolvedValue([longerBlockchain]);
+
+        const result = await blockchainLifecycleManager.synchronizeWithPeers();
+        expect(result).toBe(true);
+        expect(blockchainLifecycleManager.getBlockchain().size).toBe(3);
+        expect(BlockchainPersister.prototype.saveBlockchain).toHaveBeenCalledWith(longerBlockchain);
+        expect(Logger.info).toHaveBeenCalledWith('Found a valid longer blockchain from peers. Replacing local chain.');
+    });
 });
+
