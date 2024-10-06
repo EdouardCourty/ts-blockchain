@@ -1,5 +1,7 @@
 # TypeScript Blockchain
 
+[![CI Pipeline](https://github.com/EdouardCourty/ts-blockchain/actions/workflows/main.yml/badge.svg)](https://github.com/EdouardCourty/ts-blockchain/actions/workflows/main.yml)
+
 This is a simple blockchain implementation in TypeScript.
 
 ## Installation
