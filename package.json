@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "tsc && node dist/server.js",
+    "dev": "tsc && ts-node server.ts",
+    "start": "tsc && node dist/server.js",
     "build": "tsc",
     "test": "jest",
     "lint": "eslint src"

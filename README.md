@@ -37,9 +37,9 @@ yarn start
 
 ### To do
 
-- Secure the synchronisation
 - Implement a proper P2P networking layer
-- Implement a proper consensus algorithm (currently longest chain wins, even if it is not the most recent one, or has a different history than the other peers's ones)
+- Implement a discovery mechanism to find new peers
+- Implement node types: full, light, mining, etc.
 
 ## Contributing
 
