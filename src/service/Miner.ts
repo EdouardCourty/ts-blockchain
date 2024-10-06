@@ -2,7 +2,7 @@ import Block from '../model/Block';
 import Logger from './Logger';
 
 class Miner {
-    static mineBlock(block: Block, difficulty: number, startNonce: number = 0, step: number = 1): Block {
+    static mineBlock(block: Block, difficulty: number, startNonce= 0, step = 1): Block {
         block.nonce = startNonce;
         const target = Array(difficulty + 1).join('0');
 

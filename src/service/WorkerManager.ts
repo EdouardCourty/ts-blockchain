@@ -6,15 +6,11 @@ import * as config from '../../configuration.json';
 
 class WorkerManager extends EventEmitter {
     private workers: Worker[] = [];
-    private isMining: boolean = false;
+    private isMining = false;
 
     private miningStartTimestamp: number|null = null;
 
     public static instance: WorkerManager|null = null;
-
-    constructor() {
-        super();
-    }
 
     public static getInstance(): WorkerManager {
         if (this.instance === null) {
@@ -26,7 +22,6 @@ class WorkerManager extends EventEmitter {
 
     // Start the mining process using multiple workers, each incrementing by "step"
     public mine(block: Block, step: number): void {
-        console.log('CALLED');
         if (this.isMining) {
             Logger.info('Mining is already in progress.');
             return;

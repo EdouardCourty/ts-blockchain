@@ -10,12 +10,12 @@ import PeerManager from "./PeerManager";
 import InvalidBlockError from "../error/InvalidBlockError";
 
 class BlockchainLifecycleManager {
-    private static instance: BlockchainLifecycleManager|null = null;
+    private static instance: BlockchainLifecycleManager | null = null;
 
     private blockchain: Blockchain;
     private persister: BlockchainPersister;
     private miningInterval: NodeJS.Timeout | null = null;
-    public isMining: boolean = false;
+    public isMining = false;
 
     private constructor() {
         this.persister = new BlockchainPersister(config.blockchainFile);
@@ -162,7 +162,7 @@ class BlockchainLifecycleManager {
     }
 
     // Add a new transaction and save the blockchain
-    public addTransaction(transaction: Transaction, broadcast: boolean = false): void {
+    public addTransaction(transaction: Transaction, broadcast = false): void {
         if (this.isMining) {
             this.blockchain.addBufferedTransactions(transaction);
         } else {

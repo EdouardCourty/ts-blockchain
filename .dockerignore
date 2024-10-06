@@ -6,3 +6,4 @@ dist
 .git
 
 data
+src/logs

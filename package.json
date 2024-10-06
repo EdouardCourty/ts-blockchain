@@ -6,7 +6,7 @@
     "dev": "tsc && node dist/server.js",
     "build": "tsc",
     "test": "jest",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint src"
   },
   "type": "commonjs",
   "keywords": [],
