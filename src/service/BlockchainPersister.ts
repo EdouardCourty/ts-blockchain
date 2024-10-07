@@ -37,7 +37,7 @@ class BlockchainPersister {
 
     // Save the blockchain to the JSON file
     public saveBlockchain(blockchain: Blockchain): void {
-        const blockchainData = JSON.stringify(blockchain, null, 4); // Pretty print JSON
+        const blockchainData = JSON.stringify(blockchain.toJSON(), null, 4); // Pretty print JSON
         const dir = path.dirname(this.blockchainFilePath);
 
         if (!fs.existsSync(dir)) {

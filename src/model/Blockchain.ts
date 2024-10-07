@@ -168,6 +168,7 @@ class Blockchain {
             bufferedTransactions: this.transactionBuffer.map((tx) => tx.toJSON()),
             difficulty: this.difficulty,
             miningReward: this.miningReward,
+            blockSize: this.blockSize,
             size: this.size,
         }
     }
