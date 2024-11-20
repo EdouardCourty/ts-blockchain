@@ -18,8 +18,13 @@ class BlockchainLifecycleManager {
     public isMining = false;
 
     private constructor() {
-        this.persister = new BlockchainPersister(config.blockchainFile);
-        this.blockchain = this.persister.loadBlockchain(config.difficulty, config.miningReward, config.blockSize);
+        this.persister = new BlockchainPersister(config.persistence.blockchainFile);
+        this.blockchain = this.persister.loadBlockchain(
+          config.blockchainSettings.difficulty,
+          config.blockchainSettings.miningReward,
+          config.blockchainSettings.blockSize,
+          config.blockchainSettings.blockTime,
+        );
     }
 
     // Singleton pattern: Get the single instance of BlockchainLifecycleManager
@@ -59,8 +64,8 @@ class BlockchainLifecycleManager {
                 return;
             }
 
-            this.startMiningInWorker(config.miningRewardAddress, config.workers);
-        }, config.blockTime);
+            this.startMiningInWorker(config.clientSettings.miningRewardAddress, config.clientSettings.workers);
+        }, config.blockchainSettings.blockTime);
     }
 
     // Stop the mining loop
@@ -171,7 +176,7 @@ class BlockchainLifecycleManager {
             if (this.blockchain.pendingTransactions.length >= this.blockchain.blockSize) {
                 Logger.info('Maximum block size reached. Mining a new block.');
 
-                this.startMiningInWorker(config.miningRewardAddress, config.workers);
+                this.startMiningInWorker(config.clientSettings.miningRewardAddress, config.clientSettings.workers);
             }
         }
 
@@ -183,19 +188,27 @@ class BlockchainLifecycleManager {
     }
 
     // Synchronize with peers' blockchains on startup
-    public async synchronizeWithPeers(): Promise<boolean> {
+    public async synchronizeWithPeers(forceReplace = false): Promise<boolean> {
         Logger.info('Synchronizing with peers...');
         const peerBlockchains = await PeerManager.getInstance().fetchAllPeerBlockchains();
 
         let longestValidChain: Blockchain | null = null;
 
         peerBlockchains.forEach((peerChain: Blockchain) => {
+            if (peerChain.settingsHash !== this.blockchain.settingsHash) {
+                Logger.info('Peer blockchain has different settings. Skipping.');
+
+                return;
+            }
+
             const longerChainFoundSoFar = longestValidChain ? longestValidChain.chain.length : 0;
+            const shouldReplaceLocalChain = forceReplace || this.shouldReplaceLocalBlockchain(peerChain);
+
             if (
                 peerChain.isChainValid()
-                && peerChain.size > longerChainFoundSoFar
                 && peerChain.size > this.blockchain.size
-                && this.shouldReplaceLocalBlockchain(peerChain)
+                && peerChain.size > longerChainFoundSoFar
+                && shouldReplaceLocalChain
             ) {
                 longestValidChain = peerChain;
             }

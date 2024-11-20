@@ -1,0 +1,43 @@
+name: 'ts-blockchain-prod'
+
+services:
+  node1:
+    build:
+      context: .
+      dockerfile: .docker/prod/Dockerfile
+    environment:
+      - NODE_NAME=node1
+      - NODE_UUID=1265d94f-e313-4f3f-b9bc-f1f8ca023b7e
+    ports:
+      - target: 3000
+        published: 4000
+        protocol: tcp
+
+  node2:
+    build:
+      context: .
+      dockerfile: .docker/prod/Dockerfile
+    environment:
+      - NODE_NAME=node2
+      - NODE_UUID=2e824d3e-5406-4cbf-9b92-961b4dc4ee0e
+    ports:
+      - target: 3000
+        published: 4001
+        protocol: tcp
+
+  node3:
+    build:
+      context: .
+      dockerfile: .docker/prod/Dockerfile
+    environment:
+      - NODE_NAME=node3
+      - NODE_UUID=3f4e9176-4fc3-4c3c-9607-a1d2976edb43
+    ports:
+      - target: 3000
+        published: 4002
+        protocol: tcp
+
+networks:
+  default:
+    name: 'ts_blockchain_prod_net'
+    driver: bridge

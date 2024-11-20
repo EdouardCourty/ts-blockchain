@@ -19,19 +19,21 @@ class Block {
     }
 
     // Calculates the hash for the block
-    calculateHash(): string {
+    public calculateHash(): string {
+        const transactionHashes = this.transactions.map((tx) => tx.calculateHash()).join(',');
+
         return crypto
             .createHash('sha256')
-            .update(this.index + this.previousHash + this.timestamp + JSON.stringify(this.transactions) + this.nonce)
+            .update(this.index + this.previousHash + this.timestamp + transactionHashes + this.nonce)
             .digest('hex');
     }
 
-    isValidProofOfWork(difficulty: number): boolean {
+    public isValidProofOfWork(difficulty: number): boolean {
         const target = Array(difficulty + 1).join('0');
         return this.hash.substring(0, difficulty) === target;
     }
 
-    static fromJSON(data: any): Block {
+    public static fromJSON(data: any): Block {
         const { index, timestamp, transactions, previousHash, hash, nonce } = data;
 
         // Reconstruct transactions from JSON data if necessary
@@ -46,7 +48,7 @@ class Block {
         return block;
     }
 
-    toJSON(): object {
+    public toJSON(): object {
         return {
             index: this.index,
             timestamp: this.timestamp,

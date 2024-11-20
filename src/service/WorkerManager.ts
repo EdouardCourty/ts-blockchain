@@ -41,7 +41,7 @@ class WorkerManager extends EventEmitter {
         const worker = new Worker('./dist/worker/minerWorker.js', {
             workerData: {
                 blockData: block.toJSON(),
-                difficulty: config.difficulty,
+                difficulty: config.blockchainSettings.difficulty,
                 startNonce,
                 step,
             },

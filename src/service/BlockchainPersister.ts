@@ -12,7 +12,12 @@ class BlockchainPersister {
     }
 
     // Load the blockchain from the JSON file
-    public loadBlockchain(difficulty: number, miningReward: number, blockSize: number): Blockchain {
+    public loadBlockchain(
+      difficulty: number,
+      miningReward: number,
+      blockSize: number,
+      blockTime: number,
+    ): Blockchain {
         if (fs.existsSync(this.blockchainFilePath)) {
             const rawData = fs.readFileSync(this.blockchainFilePath, 'utf8');
             const blockchainData = JSON.parse(rawData);
@@ -29,7 +34,7 @@ class BlockchainPersister {
         }
 
         // If the file doesn't exist, create a new blockchain
-        const newBlockchain = new Blockchain(difficulty, miningReward, blockSize);
+        const newBlockchain = new Blockchain(difficulty, miningReward, blockSize, blockTime);
 
         this.saveBlockchain(newBlockchain);
         return newBlockchain;

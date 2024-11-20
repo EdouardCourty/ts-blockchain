@@ -1,7 +1,6 @@
 import BlockchainLifecycleManager from '../../src/service/BlockchainLifecycleManager';
 import Blockchain from '../../src/model/Blockchain';
 import BlockchainPersister from '../../src/service/BlockchainPersister';
-import Transaction from '../../src/model/Transaction';
 import Block from '../../src/model/Block';
 import InvalidBlockError from '../../src/error/InvalidBlockError';
 import WorkerManager from '../../src/service/WorkerManager';
@@ -9,6 +8,7 @@ import PeerManager from '../../src/service/PeerManager';
 import Logger from '../../src/service/Logger';
 // @ts-ignore
 import TestBlockProvider from "../support/TestBlockProvider";
+import TestTransactionProvider from "../support/TestTransactionProvider";
 
 // Mock necessary modules
 jest.mock('../../src/service/BlockchainPersister');
@@ -24,7 +24,7 @@ describe('BlockchainLifecycleManager', () => {
 
         BlockchainLifecycleManager.resetInstance();
 
-        const blockchain = new Blockchain(2, 100, 10);
+        const blockchain = new Blockchain(2, 100, 10, 600);
         jest.spyOn(BlockchainPersister.prototype, 'loadBlockchain').mockReturnValue(blockchain);
 
         const peerManager = new PeerManager();
@@ -34,6 +34,11 @@ describe('BlockchainLifecycleManager', () => {
         jest.spyOn(WorkerManager, 'getInstance').mockReturnValue(workerManager);
 
         blockchainLifecycleManager = BlockchainLifecycleManager.getInstance();
+    });
+
+    afterEach(() => {
+        // Kill the worker after each test to avoid running it indefinitely
+        blockchainLifecycleManager.stopMiningLoop();
     });
 
     it('should be a singleton', () => {
@@ -56,7 +61,7 @@ describe('BlockchainLifecycleManager', () => {
         );
         blockchainLifecycleManager.addBlock(transactionBlock);
 
-        const transaction = new Transaction('address1', 'address2', 50, 'REGULAR', new Date().toISOString());
+        const transaction = TestTransactionProvider.getTransaction('address1', 'address2', 50);
         blockchainLifecycleManager.addTransaction(transaction, false);
 
         const blockchain = blockchainLifecycleManager.getBlockchain();
@@ -73,7 +78,7 @@ describe('BlockchainLifecycleManager', () => {
         );
         blockchainLifecycleManager.addBlock(transactionBlock);
 
-        const transaction = new Transaction('address1', 'address2', 50, 'REGULAR', new Date().toISOString());
+        const transaction = TestTransactionProvider.getTransaction('address1', 'address2', 50);
         blockchainLifecycleManager.isMining = true; // Simulate mining in progress
         blockchainLifecycleManager.addTransaction(transaction, false);
 
@@ -94,10 +99,8 @@ describe('BlockchainLifecycleManager', () => {
         blockchainLifecycleManager.isMining = true;
 
         // Add some transactions to the buffer
-        const transaction1 = new Transaction('address1', 'address2', 50, 'REGULAR', new Date().toISOString());
-        transaction1.signature = 'sig_1';
-        const transaction2 = new Transaction('address1', 'address3', 30, 'REGULAR', new Date().toISOString());
-        transaction2.signature = 'sig_2';
+        const transaction1 = TestTransactionProvider.getTransaction('address1', 'address2', 50);
+        const transaction2 = TestTransactionProvider.getTransaction('address1', 'address2', 30);
 
         blockchainLifecycleManager.addTransaction(transaction1, false);
         blockchainLifecycleManager.addTransaction(transaction2, false);
@@ -132,14 +135,14 @@ describe('BlockchainLifecycleManager', () => {
         blockchainLifecycleManager.addBlock(transactionBlock);
 
         for (let i = 0; i < 10; i++) {
-            const transaction = new Transaction('address1', 'address_' + i, 10, 'REGULAR', new Date().toISOString());
-            transaction.signature = 'sig_' + i;
+            const transaction = TestTransactionProvider.getTransaction('address1', 'address_' + i, 10);
 
             blockchainLifecycleManager.addTransaction(transaction, false);
         }
 
         expect(Logger.info).toHaveBeenCalledWith('Maximum block size reached. Mining a new block.');
         expect(WorkerManager.getInstance().mine).toHaveBeenCalled();
+        expect(blockchainLifecycleManager.isMining).toBe(true);
     });
 
     it('should not mine a block if block size is not reached', () => {
@@ -153,7 +156,7 @@ describe('BlockchainLifecycleManager', () => {
         );
         blockchainLifecycleManager.addBlock(transactionBlock);
 
-        const transaction = new Transaction('address1', 'address2', 50, 'REGULAR', new Date().toISOString());
+        const transaction = TestTransactionProvider.getTransaction('address1', 'address2', 50);
         blockchainLifecycleManager.addTransaction(transaction, false);
 
         expect(WorkerManager.getInstance().mine).not.toHaveBeenCalled();
@@ -176,7 +179,7 @@ describe('BlockchainLifecycleManager - Synchronization', () => {
         jest.clearAllMocks();
         BlockchainLifecycleManager.resetInstance();  // Reset singleton
 
-        const blockchain = new Blockchain(2, 100, 10);
+        const blockchain = new Blockchain(2, 100, 10, 600);
         jest.spyOn(BlockchainPersister.prototype, 'loadBlockchain').mockReturnValue(blockchain);
 
         const peerManager = new PeerManager();
@@ -190,7 +193,7 @@ describe('BlockchainLifecycleManager - Synchronization', () => {
         localBlockchain.chain = [localBlockchain.chain[0]];  // Keep only the genesis block
         expect(localBlockchain.size).toBe(1);
 
-        const peerBlockchain = new Blockchain(2, 100, 10);
+        const peerBlockchain = new Blockchain(2, 100, 10, 600);
         const block1 = TestBlockProvider.getEmptyBlock(peerBlockchain.getLatestBlock(), peerBlockchain.difficulty);
         const block2 = TestBlockProvider.getEmptyBlock(block1, peerBlockchain.difficulty);
         peerBlockchain.addBlock(block1);
@@ -210,7 +213,7 @@ describe('BlockchainLifecycleManager - Synchronization', () => {
         localBlockchain.addBlock(block1);
         expect(localBlockchain.size).toBe(2);
 
-        const peerBlockchain = new Blockchain(2, 100, 10);
+        const peerBlockchain = new Blockchain(2, 100, 10, 600);
         const peerBlock1 = TestBlockProvider.getEmptyBlock(peerBlockchain.getLatestBlock(), peerBlockchain.difficulty);
         peerBlockchain.addBlock(peerBlock1);
 
@@ -223,7 +226,7 @@ describe('BlockchainLifecycleManager - Synchronization', () => {
     });
 
     it('should not replace the chain if no valid longer chain is found', async () => {
-        const invalidBlockchain = new Blockchain(2, 100, 5);
+        const invalidBlockchain = new Blockchain(2, 100, 5, 600);
         jest.spyOn(invalidBlockchain, 'isChainValid').mockReturnValue(false);
         jest.spyOn(PeerManager.getInstance(), 'fetchAllPeerBlockchains').mockResolvedValue([invalidBlockchain]);
 
@@ -232,15 +235,25 @@ describe('BlockchainLifecycleManager - Synchronization', () => {
         expect(Logger.info).toHaveBeenCalledWith('No valid longer blockchain found.');
     });
 
-    it('should replace the chain with a valid longer blockchain from a peer that shares a common history', async () => {
-        const longerBlockchain = new Blockchain(2, 100, 5);
+    it('should replace the chain with a valid longer blockchain from a peer that shares a common history and has the same settings', async () => {
+        // Create a longer blockchain with the same settings
+        const longerBlockchain = new Blockchain(
+          blockchainLifecycleManager.getBlockchain().difficulty,
+          blockchainLifecycleManager.getBlockchain().miningReward,
+          blockchainLifecycleManager.getBlockchain().blockSize,
+          blockchainLifecycleManager.getBlockchain().blockTime,
+        );
+        // Populate the chain with the same history as the local blockchain
         longerBlockchain.chain = [...blockchainLifecycleManager.getBlockchain().chain];
 
         const block1 = TestBlockProvider.getEmptyBlock(
             longerBlockchain.getLatestBlock(),
             blockchainLifecycleManager.getBlockchain().difficulty
         );
-        const block2 = TestBlockProvider.getEmptyBlock(block1, blockchainLifecycleManager.getBlockchain().difficulty);
+        const block2 = TestBlockProvider.getEmptyBlock(
+          block1,
+          blockchainLifecycleManager.getBlockchain().difficulty
+        );
 
         longerBlockchain.addBlock(block1);
         longerBlockchain.addBlock(block2);
@@ -252,6 +265,29 @@ describe('BlockchainLifecycleManager - Synchronization', () => {
         expect(blockchainLifecycleManager.getBlockchain().size).toBe(3);
         expect(BlockchainPersister.prototype.saveBlockchain).toHaveBeenCalledWith(longerBlockchain);
         expect(Logger.info).toHaveBeenCalledWith('Found a valid longer blockchain from peers. Replacing local chain.');
+    });
+
+    it('should not replace the chain if the settings of the peerChain are different', async () => {
+        // Create a longer blockchain with different settings
+        const longerBlockchain = new Blockchain(
+          blockchainLifecycleManager.getBlockchain().difficulty,
+          blockchainLifecycleManager.getBlockchain().miningReward + 1,
+          blockchainLifecycleManager.getBlockchain().blockSize,
+          blockchainLifecycleManager.getBlockchain().blockTime,
+        );
+        longerBlockchain.chain = [...blockchainLifecycleManager.getBlockchain().chain];
+
+        const block1 = TestBlockProvider.getEmptyBlock(
+            longerBlockchain.getLatestBlock(),
+            blockchainLifecycleManager.getBlockchain().difficulty
+        );
+        longerBlockchain.addBlock(block1);
+
+        jest.spyOn(PeerManager.getInstance(), 'fetchAllPeerBlockchains').mockResolvedValue([longerBlockchain]);
+
+        const result = await blockchainLifecycleManager.synchronizeWithPeers();
+        expect(result).toBe(false);
+        expect(Logger.info).toHaveBeenCalledWith('Peer blockchain has different settings. Skipping.');
     });
 });
 

@@ -17,7 +17,7 @@ class Transaction {
         fromAddress: string | null,
         toAddress: string,
         amount: number,
-        type: TransactionType = 'REGULAR',
+        type: TransactionType,
         timestamp: string
     ) {
         this.fromAddress = fromAddress;
@@ -29,7 +29,7 @@ class Transaction {
     }
 
     // Calculate the transaction hash
-    calculateHash(): string {
+    public calculateHash(): string {
         return crypto
             .createHash('sha256')
             .update(this.fromAddress + this.toAddress + this.amount + this.timestamp)
@@ -37,7 +37,7 @@ class Transaction {
     }
 
     // Check if the transaction is valid
-    isValid(): boolean {
+    public isValid(): boolean {
         if (this.type === 'REWARD' && !this.fromAddress) return true; // Reward transactions have no fromAddress
 
         if (this.fromAddress === null) {
@@ -53,7 +53,7 @@ class Transaction {
         return publicKey.verify(this.calculateHash(), this.signature);
     }
 
-    static fromJSON(data: any): Transaction {
+    public static fromJSON(data: any): Transaction {
         const transaction = new Transaction(data.fromAddress, data.toAddress, data.amount, data.type, data.timestamp);
         transaction.signature = data.signature;
 

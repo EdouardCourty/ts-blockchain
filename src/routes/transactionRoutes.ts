@@ -13,6 +13,8 @@ router.post('/', (req, res) => {
         return res.status(400).json({ error: 'Reward transactions cannot be broadcasted' });
     }
 
+    transaction.type = 'REGULAR';
+
     if (transaction.fromAddress === null) {
         return res.status(400).json({ error: 'Transaction has no origin address' });
     }

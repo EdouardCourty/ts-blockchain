@@ -12,9 +12,13 @@ router.get('/:address', (req, res) => {
     }
 
     const blockchain = BlockchainLifecycleManager.getInstance().getBlockchain();
-    const balance = blockchain.getBalanceOfAddress(address);
+    const validatedBalance = blockchain.getValidatedBalance(address);
+    const theoricalBalance = blockchain.getTheoricalBalance(address);
 
-    res.json({ balance });
+    res.json({
+        validatedBalance,
+        theoricalBalance,
+    });
 
     return res.end();
 });

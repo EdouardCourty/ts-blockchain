@@ -16,7 +16,7 @@ class PeerManager {
     private readonly peersFilePath: string;
 
     constructor() {
-        this.peersFilePath = config.peersFile;
+        this.peersFilePath = config.persistence.peersFile;
         this.peers = this.loadPeers(); // Load peers when instantiated
     }
 
