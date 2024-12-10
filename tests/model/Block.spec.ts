@@ -1,5 +1,8 @@
 import Block from '../../src/model/Block';
 import Transaction from '../../src/model/Transaction';
+import TestBlockProvider from "../support/TestBlockProvider";
+
+jest.mock('../../src/service/Logger');
 
 describe('Block', () => {
     it('should create a block with the correct properties', () => {
@@ -33,5 +36,26 @@ describe('Block', () => {
         const calculatedHash: string = block.calculateHash();
 
         expect(calculatedHash).toHaveLength(64);  // SHA-256 hash has a length of 64 hex characters
+    });
+
+    it('should validate a proof of work with a valid nonce', () => {
+        // Create a block with a proof of work difficulty of 2
+        const block = TestBlockProvider.getEmptyBlock(null, 2);
+
+        expect(block.isValidProofOfWork(2)).toBe(true);
+    });
+
+    it('should not validate a proof of work with an invalid nonce', () => {
+        const block = TestBlockProvider.getEmptyBlock(null, 2);
+        block.nonce = block.nonce + 1; // Increment the nonce to make the hash invalid
+
+        expect(block.isValidProofOfWork(2)).toBe(false);
+    });
+
+    it('should not validate a proof of work with an invalid hash but valid amount of zeroes', () => {
+        const block = TestBlockProvider.getEmptyBlock(null, 2);
+        block.hash = '00wrong_hash'; // Increment the nonce to make the hash invalid
+
+        expect(block.isValidProofOfWork(2)).toBe(false);
     });
 });

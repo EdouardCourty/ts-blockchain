@@ -29,8 +29,17 @@ class Block {
     }
 
     public isValidProofOfWork(difficulty: number): boolean {
+        if (this.hash === null) {
+            return false;
+        }
+
         const target = Array(difficulty + 1).join('0');
-        return this.hash.substring(0, difficulty) === target;
+
+        if (this.hash.substring(0, difficulty) !== target) {
+            return false;
+        }
+
+        return this.hash === this.calculateHash();
     }
 
     public static fromJSON(data: any): Block {
